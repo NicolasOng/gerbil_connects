@@ -14,6 +14,11 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+# imports for end2end_neural_el
+from gerbil.nn_processing import NNProcessing
+from gerbil.build_entity_universe import BuildEntityUniverse
+from gerbil.server import _parse_args
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -42,14 +47,12 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def mock_entity_linking_model(raw_text):
-    # TODO replace this function call with a call to your annotator, which receives the raw text and returns annotation
-    #  spans over the raw text in the format of (start character, end character, entity identifier)
-    assert len(raw_text) > 0
-    return [
-        (0, 3, 'Product_demonstration'),
-        (10, 12, 'Example')
-    ]
+def end2end_neural_el_model(raw_text):
+    # nnprocessing.process expects a second parameter, given_spans
+    response = nnprocessing.process(raw_text, [])
+    # the response is in (start, length, name) instead of (start, end, name).
+    converted_response = [(start, start + length, name) for start, length, name in response]
+    return converted_response
 
 class GerbilAnnotator:
     """
@@ -61,7 +64,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in mock_entity_linking_model(raw_text):
+        for annotation in end2end_neural_el_model(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
@@ -117,7 +120,14 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
-    annotator_name = "<template>"
+    annotator_name = "end2end_neural_el"
+
+    args, train_args = _parse_args()
+    if args.build_entity_universe:
+        buildEntityUniverse = BuildEntityUniverse()
+    else:
+        nnprocessing = NNProcessing(train_args, args)
+
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:
