@@ -14,6 +14,17 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+from REL.mention_detection import MentionDetection
+from REL.utils import process_results
+from REL.entity_disambiguation import EntityDisambiguation
+from REL.ner import Cmns, load_flair_ner
+from threading import Thread
+from queue import Queue
+
+wiki_version = "wiki_2019"
+base_url = "/mnt/d/Datasets/Radboud/"
+annotation_queue = Queue()
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -42,14 +53,11 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def mock_entity_linking_model(raw_text):
-    # TODO replace this function call with a call to your annotator, which receives the raw text and returns annotation
-    #  spans over the raw text in the format of (start character, end character, entity identifier)
-    assert len(raw_text) > 0
-    return [
-        (0, 3, 'Product_demonstration'),
-        (10, 12, 'Example')
-    ]
+def REL_model(raw_text):
+    output_queue = Queue()
+    annotation_queue.put((raw_text, output_queue))
+    output = output_queue.get()
+    return output
 
 class GerbilAnnotator:
     """
@@ -61,7 +69,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in mock_entity_linking_model(raw_text):
+        for annotation in REL_model(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
@@ -116,8 +124,54 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+
+def REL_thread():
+    # set up the MD and ED models
+    mention_detection = MentionDetection(base_url, wiki_version)
+
+    tagger_ner = load_flair_ner("ner-fast")
+    #tagger_ngram = Cmns(base_url, wiki_version, n=5)
+
+    config = {
+        "mode": "eval",
+        "model_path": "ed-wiki-2019",
+    }
+    Radboud_model = EntityDisambiguation(base_url, wiki_version, config)
+
+    while True:
+        raw_text, output_queue = annotation_queue.get()
+        if raw_text is None:  # sentinel to stop the thread
+            break
+
+        # process the raw text into the input format
+        doc_name = "my_doc"
+        input_text = {
+            doc_name: (raw_text, []),
+        }
+        # Execute the task and put the result in result_queue
+        # mention detection using flair
+        mentions, n_mentions = mention_detection.find_mentions(input_text, tagger_ner)
+
+        # entity disambiguation
+        predictions, timing = Radboud_model.predict(mentions)
+        
+        result = process_results(mentions, predictions, input_text)
+        print(result)
+        # process results
+        '''
+        Example result format:
+        {'my_doc': [(0, 13, 'Hello, world!', 'Hello_world_program', 0.6534378618767961, 182, '#NGRAM#')]}
+        '''
+        mention_list = result.get(doc_name, [])
+        output = [(mention[0], mention[0] + mention[1], mention[3]) for mention in mention_list]
+        output_queue.put(output)
+
+
 if __name__ == '__main__':
-    annotator_name = "<template>"
+    annotator_name = "REL"
+
+    Thread(target=REL_thread, daemon=True).start()
+
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:
