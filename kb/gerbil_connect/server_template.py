@@ -28,6 +28,9 @@ from allennlp.data.dataset import Batch
 
 import torch
 import re
+import pickle
+
+from gerbil_connect.token_char_utils import remove_whitespaces, character_to_character_index
 
 reader_params_ww = Params({
         "type": "aida_wiki_linking",
@@ -121,6 +124,44 @@ def split_into_sentences(text):
     # Return sentences along with their starting indices
     return [(sentence, text.index(sentence)) for sentence in sentences if sentence]
 
+def split_into_sentences_gold(obj, chunk_size=50):
+    words = obj['words']
+    gold_spans = obj['gold_spans']
+    gold_entities = obj['gold_entities']
+    
+    # Create a single string from words to calculate character indices
+    document = " ".join(words)
+
+    # Split words into chunks
+    chunks = [words[i:i+chunk_size] for i in range(0, len(words), chunk_size)]
+    
+    new_objects = []
+
+    char_index = 0  # Initialize character index
+    
+    for idx, chunk in enumerate(chunks):
+        start_index = idx * chunk_size
+        end_index = start_index + chunk_size
+        
+        # Adjust gold_spans for the current chunk
+        adjusted_spans = []
+        adjusted_entities = []
+        for span, entity in zip(gold_spans, gold_entities):
+            if span[0] >= start_index and span[1] < end_index:
+                adjusted_spans.append([span[0] - start_index, span[1] - start_index])
+                adjusted_entities.append(entity)
+        
+        new_objects.append(({
+            'words': chunk,
+            'gold_spans': adjusted_spans,
+            'gold_entities': adjusted_entities
+        }, char_index))
+
+        # Update char_index for the next iteration
+        char_index += len(" ".join(chunk)) + 1  # +1 for the space between chunks
+    
+    return new_objects
+
 def map_entity_id_to_name(target_id, entity_ids, entity_names):
     """
     Retrieve the name corresponding to the given ID.
@@ -194,6 +235,22 @@ def convert_decoded_output(decode_output, entity_ids, entity_names, token_spans,
         converted_output.append(mention)
     return converted_output
 
+def convert_final_predictions(predictions, pred_sentence, new_sentence):
+    '''
+    input: [(12, 35, "Entity_Name"), ...]
+    Where the span indices refer to characters in the pred_sentence,
+    but we want them to refer to the characters in the new_sentence.
+    '''
+    new_preds = []
+    for pred in predictions:
+        start_pred = pred[0]
+        end_pred = pred[1]
+        pred_name = pred[2]
+        new_start = character_to_character_index(pred_sentence, new_sentence, start_pred)
+        new_end = character_to_character_index(pred_sentence, new_sentence, end_pred - 1) + 1
+        new_preds.append((new_start, new_end, pred_name))
+    return new_preds
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -223,21 +280,63 @@ def extract_dump_res_json(parsed_collection):
     }
 
 def knowbert_model(raw_text):
-    sentences = split_into_sentences(raw_text)
+    gold = False
 
-    instances = []
-    processeds = []
-    for sentence, _ in sentences:
-        processed = reader.mention_generator.get_mentions_raw_text(sentence, whitespace_tokenize=True)
-        # get_mentions_raw_text returns a very slightly different dict from get_mentions_with_gold
-        processed["candidate_entity_prior"] = processed["candidate_entity_priors"]
-        del processed["candidate_entity_priors"]
-        instance = reader.text_to_instance(doc_id="", **processed)
-        processeds.append(processed)
-        instances.append(instance)
+    # get the gold info - tokens, spans, entities
+    if gold:
+        target_string = remove_whitespaces(raw_text)
+        for doc in gold_documents:
+            if doc["doc_no_whitespace"] == target_string:
+                matching_document = doc
+                break
+        if matching_document is None:
+            print("No matching document found for: \n" + target_string)
+        
+        # remove the tokens with just whitespace (breaks the tokenizer)
+        words = matching_document['words']
+        matching_document['words'] = [word for word in words if word.strip() != '']
+    
+    if not gold:
+        # documents > 415 tokens is too long for KnowBert,
+        # break the text down by sentences.
+        sentences = split_into_sentences(raw_text)
+        
+        instances = []
+        processeds = []
+        for sentence, _ in sentences:
+            # Uses a whitespace tokenizer to tokenize the sentence, creates candidate token spans + entities.
+            processed = reader.mention_generator.get_mentions_raw_text(sentence, whitespace_tokenize=True)
+            # get_mentions_raw_text returns a very slightly different dict from get_mentions_with_gold
+            processed["candidate_entity_prior"] = processed["candidate_entity_priors"]
+            del processed["candidate_entity_priors"]
+            # converts to Allennlp Instance, adds extra span/entity candidates for wordnet
+            instance = reader.text_to_instance(doc_id="", **processed)
+            processeds.append(processed)
+            instances.append(instance)
+    else:
+        # break down document tokens into 50 token long sentences
+        # make sure the gold spans indices are adjusted
+        sentences = split_into_sentences_gold(matching_document)
+        #sentences = [({"words": matching_document["words"], "gold_spans": matching_document["gold_spans"], "gold_entities": matching_document["gold_entities"]}, 0)]
+        instances = []
+        processeds = []
+        for sentence, _ in sentences:
+            words = sentence["words"]
+            gold_spans = sentence["gold_spans"]
+            gold_entities = sentence["gold_entities"]
+            # uses whitespace tokenizer to split the input text.
+            # the given gold spans indexes those tokens - splitting the raw text from GERBIL wouldn't've worked.
+            # eg: ["Robert", "R." "Ford", "."] vs ["Robert", "R.", "Ford."] - hard to know where to split when just given the raw text.
+            # creates candidate spans + entities, but adds the gold spans to the candidate list.
+            processed = reader.mention_generator.get_mentions_with_gold(' '.join(words), gold_spans, gold_entities, whitespace_tokenize=True, keep_gold_only=False)
+            # converts to Allennlp Instance, adds extra span/entity candidates for wordnet
+            instance = reader.text_to_instance(doc_id="", **processed)
+            processeds.append(processed)
+            instances.append(instance)
 
     total_final_output = []
     for batch_no, batch in enumerate(iterator(instances, shuffle=False, num_epochs=1)):
+        # b is the Allennlp Instance after the iterator turns it into a model-friendly input. Converts the word-level tokens to BERT tokens, adjusts the span indices, converts entity names to ids, etc.
         b = move_to_device(batch, 0)
 
         b['candidates'] = {'wiki': {
@@ -266,17 +365,27 @@ def knowbert_model(raw_text):
         else:
             bb = b
 
+        # bb is b after some processing (see above).
+
+        # output has linking scores for every entity.
         raw_output = model(**bb)
-    
+
+        # decode returns a list of [batch, (start, end), entity id].
+        # the start/end refer to the BERT tokens.
         decoded_output = wiki_el._decode(raw_output["wiki"]["linking_scores"], bb["candidates"]["wiki"]["candidate_spans"], bb["candidates"]["wiki"]["candidate_entities"]["ids"])
-    
+
+        # converts entity ids back to names, and span indices from BERT tokens to word tokens to characters (of the sentence).
         final_output = convert_decoded_output(decoded_output, bb["candidates"]["wiki"]["candidate_entities"]["ids"], processeds[batch_no]["candidate_entities"], bb["candidates"]["wiki"]["candidate_spans"], processeds[batch_no]["candidate_spans"], processeds[batch_no]["tokenized_text"])
 
+        # converts the span indices from characters of the sentence to characters of the document
         sentence_start_index = sentences[batch_no][1]
         final_output = [(a + sentence_start_index, b + sentence_start_index, c) for a, b, c in final_output]
 
         total_final_output += final_output
 
+    if gold:
+        # The sentence GERBIL sends and what it predicts for in the gold route (" ".join(words)) are different, so the character span indices are also a little different. Need to convert them to the given sentence.
+        total_final_output = convert_final_predictions(total_final_output, " ".join(matching_document['words']), raw_text)
     
     return total_final_output
 
@@ -346,6 +455,22 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
+    gold = False
+
+    if gold:
+        with open('documents_wgold_dev.pkl', 'rb') as file:
+            documents_wgold_dev = pickle.load(file)
+        with open('documents_wgold_test.pkl', 'rb') as file:
+            documents_wgold_test = pickle.load(file)
+        gold_documents = documents_wgold_dev["documents"] + documents_wgold_test["documents"]
+        gold_documents = [{
+            "words": document["words"],
+            "doc_no_whitespace": "".join(document["words"]),
+            "doc_spaces": " ".join(document["words"]),
+            "gold_spans": document["gold_spans"],
+            "gold_entities": document["gold_entities"]
+        } for document in gold_documents]
+
     annotator_name = "KnowBert"
     
     import argparse
