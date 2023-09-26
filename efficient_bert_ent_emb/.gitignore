@@ -1,0 +1,6 @@
+wikidata_entity_types.tsv
+wikipedia2vec
+__pycache__/
+model_dirs/
+entity_linking/code/utils/__pycache__/
+test/
