@@ -700,7 +700,7 @@ class EntityLinkingAsLM:
         # Record test scores when model performs best on valid set.
         test_micro_score = None
         test_macro_score = None
-        #  self.save(model_dir, epoch = 0)
+        self.save(model_dir, epoch = 0)
 
         for epoch in trange(epochs, desc = "Epoch", disable = not verbose):
             self.rnd.shuffle(train_samples)
@@ -714,11 +714,13 @@ class EntityLinkingAsLM:
             micro_res, macro_res = self.get_predict_score(self.dev_file, self.dev_gold_file)
             print(f"valid micro p r f1: {micro_res} in epoch {epoch+1}")
             print(f"valid macro p r f1: {macro_res} in epoch {epoch+1}")
+            self.save(model_dir, epoch = epoch+1)
             if micro_res[2] > valid_best_micro_f1:
               valid_best_micro_f1 = micro_res[2]
               best_epoch = epoch
               print(f"new best score on valid in epoch {epoch+1} is achieved")
               test_micro_score, test_macro_score = self.get_predict_score(self.test_file, self.test_gold_file)
+              self.save(model_dir, epoch = None)
 
         print(f"In epoch {best_epoch+1}, the model performs best on valid set and the performance on test is as follows.")
         print(f"Test micro p r f1: {test_micro_score,}")
