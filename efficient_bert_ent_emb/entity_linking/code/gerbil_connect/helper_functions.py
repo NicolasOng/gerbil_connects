@@ -1,14 +1,44 @@
 import re
 import pickle
 
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import word_tokenize
+
 with open('aida_gold_documents.pkl', 'rb') as file:
     gold_documents = pickle.load(file)
 
-def remove_whitespaces(s):
+# ==========================
+# Tokenizing functions
+# ==========================
+
+def split_by_whitespace(text):
     '''
-    removes whitespaces - spaces, tabs, newlines.
+    Simple function for models that require text to be given
+    in a ["Hello", "my", "name", "is", ...] format.
+    Just splits by white spaces (a whitespace tokenizer).
     '''
-    return re.sub(r'\s+', '', s)
+    tokens = text.split()
+    tokens = [word for word in tokens if word.strip()]
+
+    return tokens
+
+def aida_tokenize(raw_text):
+    '''
+    "tokenizes" the input exactly as AIDA would.
+    '''
+    gold_doc = aida_get_gold_document(raw_text)
+    return gold_doc["words"]
+
+def punkt_tokenize(raw_text):
+    '''
+    tokenizes using nltk's punkt tokenizer.
+    '''
+    return word_tokenize(raw_text)
+
+# ==========================
+# Sentence splitting
+# ==========================
 
 def split_into_sentences(text):
     '''
@@ -24,21 +54,12 @@ def split_into_sentences(text):
     
     return sentences
 
-def split_by_whitespace(text, max_len=500):
-    '''
-    Simple function for models that require text to be given
-    in a ["Hello", "my", "name", "is", ...] format.
-    Just splits by white spaces (a whitespace tokenizer).
-    '''
-    tokens = text.split()
-    tokens = [word for word in tokens if word.strip()]
-
-    return tokens
-
 def split_by_max_len(tokens, max_len=500):
     '''
     splits a list of tokens like ["Hello", "my", "name", "is", ...]
     into multiple lists, if it's too long.
+    For models that can't take in the entire list of tokens.
+    Easier than searching for sentence ends.
     '''
     # If the tokens list is longer than max_len, split it into smaller chunks
     if len(tokens) > max_len:
@@ -46,6 +67,10 @@ def split_by_max_len(tokens, max_len=500):
         chunked_tokens = [tokens[i * max_len: (i + 1) * max_len] for i in range(num_chunks)]
         return chunked_tokens
     return [tokens]
+
+# ==========================
+# Index to index functions
+# ==========================
 
 def character_to_character_index(s1, s2, idx):
     '''
@@ -125,6 +150,10 @@ def token_to_no_whitespace_character_index(tokens, start_token_index, end_token_
     
     return start_idx, end_idx
 
+# ==========================
+# Misc functions
+# ==========================
+
 def aida_get_gold_document(raw_text):
     '''
     given the raw text from GERBIL, this gets the "gold document" from a file.
@@ -144,9 +173,8 @@ def aida_get_gold_document(raw_text):
         print("No matching document found for: \n" + target_string)
     return matching_document
 
-def aida_tokenize(raw_text):
+def remove_whitespaces(s):
     '''
-    "tokenizes" the input exactly as AIDA would.
+    removes whitespaces - spaces, tabs, newlines.
     '''
-    gold_doc = aida_get_gold_document(raw_text)
-    return gold_doc["words"]
+    return re.sub(r'\s+', '', s)
