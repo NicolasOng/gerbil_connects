@@ -140,7 +140,7 @@ def extract_dump_res_json(parsed_collection):
     }
 
 def eeebert_model(raw_text):
-    mode = "token"
+    mode = "punkt"
 
     # convert the text given into a list of sentences,
     # where each sentence is a list of strings representing words.
