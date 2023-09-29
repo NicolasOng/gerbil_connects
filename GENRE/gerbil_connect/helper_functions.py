@@ -80,7 +80,7 @@ def sentence_tokenize(raw_text):
 
 def character_to_character_index(s1, s2, idx):
     '''
-    input: two strings with the same non-whitespace characters, and the character index of a non-whitespace character in the first string.
+    input: two strings with the same non-whitespace characters (in the same order), and the character index of a non-whitespace character in the first string.
     output: the index of that same character in the second string.
     Use:
     When two systems have different tokenizers, so one does
@@ -120,7 +120,7 @@ def token_to_character_index(tokens, characters, start_idx, end_idx):
     11, 21
     Which refer to the asterisk'd characters in:
     "Hello,     *h*ow are yo*u*?"
-    Note the large amount of spaces.
+    Note the large amount of spaces. It doesn't assume the tokens are separated by a single space.
     '''
     char_start_nws_idx, char_end_nws_idx = token_to_no_whitespace_character_index(tokens, start_idx, end_idx)
     nws_tokens = ''.join(tokens)
@@ -155,6 +155,31 @@ def token_to_no_whitespace_character_index(tokens, start_token_index, end_token_
             break
     
     return start_idx, end_idx
+
+def sentence_to_document_character_index(sentences, document, sentence_i, char_i):
+    '''
+    Given a character in a sentence, get the character in the document.
+    For example, with the following input:
+    - sentences: ["Hello, how are you?", "I am well."]
+    - document: "Hello, how are you?    I am well."
+    - sentence_i: 1
+    - char_i: 2
+    You get the output:
+    - 25
+    Both sentences[sentence_i][char_i] and document[25] reference the "a" in "am" in the second sentence.
+    This function does not assume that the sentences are seperated by a single space.
+    '''
+    # get the char index for the nws_document.
+    nws_char_i = 0
+    for i in range(sentence_i):
+        nws_char_i += len(sentences[i])
+    nws_char_i += char_i
+
+    # convert that index to one for the given document
+    nws_document = ''.join(sentences)
+    document_i = character_to_character_index(nws_document, document, nws_char_i)
+    
+    return document_i
 
 # ==========================
 # Misc functions

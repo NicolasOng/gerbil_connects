@@ -14,13 +14,13 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
-from gerbil_connect.helper_functions import sentence_tokenize
+from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index
 
 import sys
 
 import json
 
-with open('config.json', 'r') as f:
+with open('./gerbil_connect/config.json', 'r') as f:
     config = json.load(f)
 
 MODEL_LOCATION = config['MODEL_LOCATION']
@@ -62,14 +62,36 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def mock_entity_linking_model(raw_text):
-    # TODO replace this function call with a call to your annotator, which receives the raw text and returns annotation
-    #  spans over the raw text in the format of (start character, end character, entity identifier)
-    assert len(raw_text) > 0
-    return [
-        (0, 3, 'Product_demonstration'),
-        (10, 12, 'Example')
-    ]
+def genre_model(raw_text):
+    # Split the raw text into sentences.
+    # The model can't handle sentences with
+    # more characters than ~2471 - 3375.
+    # Can either split every document into sentences,
+    # or just those with len > 2470.
+    always_split = True
+    if always_split or (len(raw_text) > 2475):
+        sentences = sentence_tokenize(raw_text)
+    else:
+        sentences = [raw_text]
+    
+    # use the model to get the spans/entities
+    # in the form [[(start, length, entity), ...], ...],
+    # a list of spans for each given sentence.
+    model_preds = get_entity_spans(model, sentences)
+
+    # convert these from sentence to document spans
+    # and to the correct format.
+    final_preds = []
+    for sentence_i, sentence_preds in enumerate(model_preds):
+        for pred in sentence_preds:
+            s_start = pred[0]
+            length = pred[1]
+            entity = pred[2]
+            d_start = sentence_to_document_character_index(sentences, raw_text, sentence_i, s_start)
+            final_pred = (d_start, d_start + length, entity)
+            final_preds.append(final_pred)
+
+    return final_preds
 
 class GerbilAnnotator:
     """
@@ -81,7 +103,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in mock_entity_linking_model(raw_text):
+        for annotation in genre_model(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
