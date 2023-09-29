@@ -14,6 +14,26 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+from gerbil_connect.helper_functions import sentence_tokenize
+
+import sys
+
+import json
+
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+MODEL_LOCATION = config['MODEL_LOCATION']
+GENRE_REPO_LOCATION = config['GENRE_REPO_LOCATION']
+FAIRSEQ_REPO_LOCATION = config['FAIRSEQ_REPO_LOCATION']
+
+sys.path.append(GENRE_REPO_LOCATION)
+sys.path.append(FAIRSEQ_REPO_LOCATION)
+
+from genre.fairseq_model import GENRE
+from genre.entity_linking import get_end_to_end_prefix_allowed_tokens_fn_fairseq as get_prefix_allowed_tokens_fn
+from genre.utils import get_entity_spans_fairseq as get_entity_spans
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -118,6 +138,9 @@ def annotate_n3():
 
 if __name__ == '__main__':
     annotator_name = "<template>"
+
+    model = GENRE.from_pretrained(MODEL_LOCATION).eval()
+
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:

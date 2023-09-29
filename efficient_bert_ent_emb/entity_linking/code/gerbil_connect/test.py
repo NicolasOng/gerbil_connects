@@ -1,11 +1,3 @@
-"""
-This file provides a template server in which you can import your implemented entity linking model and evaluate it using
-GERBIL. All the communication parts are worked out you will only need to replace `mock_entity_linking_model` with your
-model and start load up its required resources in `generic_annotate` method.
-
-This template supports both Wikipedia in-domain test sets (i.e. AIDA-CoNLL) and out-of-domain test sets (e.g. KORE).
-At the end you will also have the annotation results stored in `annotate_{annotator_name}_result.json`.
-"""
 import os
 import json
 import pathlib
@@ -17,12 +9,13 @@ from gerbil_connect.nif_parser import NIFParser
 import argparse
 import pickle
 
-from utils.util_wikidata import load_wikidata
-import torch.nn as nn
-
 from run_aida import EntityLinkingAsLM
 
 from gerbil_connect.helper_functions import aida_tokenize, token_to_character_index, split_by_whitespace, punkt_tokenize
+
+from utils.util_wikidata import load_wikidata
+
+import torch.nn as nn
 
 def ebert_split_too_long_aida_tokens(sentence, model):
     '''
@@ -114,34 +107,6 @@ def predict_sentence(model, sentence, args):
     '''
     return model.predict_sentence(sentence, args.eval_batch_size, args.decode_iter)
 
-app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
-cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
-app.config['CORS_HEADERS'] = 'Content-Type'
-
-app.add_url_rule('/', 'root', lambda: app.send_static_file('index.html'))
-
-gerbil_communication_done = False
-gerbil_query_count = 0
-annotator = None
-annotate_result = []
-candidates_manager_to_use = None
-n3_entity_to_kb_mappings = None
-
-lock = Lock()
-
-def get_n3_entity_to_kb_mappings():
-    kb_file = pathlib.Path(os.path.abspath(__file__)).parent.parent.parent / "resources" / "data" / "n3_kb_mappings.json"
-    knowledge_base = json.load(kb_file.open("r"))
-    return knowledge_base
-
-
-def extract_dump_res_json(parsed_collection):
-    return {
-        "text": parsed_collection.contexts[0].mention,
-        "value": [{"start": phrase.beginIndex, "end": phrase.endIndex, "tag": phrase.taIdentRef}
-                  for phrase in parsed_collection.contexts[0]._context.phrases]
-    }
-
 def eeebert_model(raw_text):
     mode = "punkt"
 
@@ -185,110 +150,45 @@ def eeebert_model(raw_text):
 
     return final_preds
 
-class GerbilAnnotator:
-    """
-    The annotator class must implement a function with the following signature
-    """
-    def annotate(self, nif_collection, **kwargs):
-        assert len(nif_collection.contexts) == 1
-        context = nif_collection.contexts[0]
-        raw_text = context.mention
-        # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
-        kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in eeebert_model(raw_text):
-            # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
-            prediction_probability = 1.0
-            context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
-                               annotator='http://sfu.ca/spel/gerbil_connect', taIdentRef=kb_prefix+annotation[2])
+args = parse_args()
+print(os.uname(), flush = True)
+print("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", None), flush = True)
+print(args, flush = True)
 
-def generic_annotate(nif_bytes, kb_prefix):
-    global gerbil_communication_done, gerbil_query_count, annotator, candidates_manager_to_use
-    parsed_collection = NIFParser(nif_bytes.decode('utf-8').replace('\\@', '@'), format='turtle')
-    if gerbil_communication_done:
-        gerbil_query_count += 1
-        print("Received query number {} from gerbil!".format(gerbil_query_count))
-        with lock:
-            annotator.annotate(parsed_collection, kb_prefix=kb_prefix, candidates_manager=candidates_manager_to_use)
-    else:
-        print(" * Handshake to Gerbil was successful!")
-        # TODO instanciate the annotator class and load up its required resources:
-        annotator = GerbilAnnotator()
-        gerbil_communication_done = True
-        return nif_bytes
-    try:
-        res = parsed_collection.nif_str(format='turtle')
-        res_json = extract_dump_res_json(parsed_collection)
-        annotate_result.append(res_json)
-        return res
-    except Exception:
-        return nif_bytes
+model = load_model(args)
 
-@app.route('/annotate_aida', methods=['GET', 'POST', 'OPTIONS'])
-@cross_origin(origins='*')
-def annotate_aida():
-    """Use this API for AIDA dataset."""
-    return generic_annotate(request.data, "http://en.wikipedia.org/wiki/")
+use_type_emb =  args.use_type_emb
+type_emb_option = args.type_emb_option
+do_reinit_lm = args.do_reinit_lm
+wikidata_entity_types_path = args.wikidata_entity_types_path
 
-@app.route('/annotate_wiki', methods=['GET', 'POST', 'OPTIONS'])
-@cross_origin(origins='*')
-def annotate_wiki():
-    """Use this API for MSNBC dataset."""
-    return generic_annotate(request.data, "http://en.wikipedia.org/wiki/")
+model.use_ebert_emb = args.use_ebert_emb
+model.type_emb_option = args.type_emb_option
+model.use_pos_emb = args.use_pos_emb
+model.model_dir = args.model_dir
+model.dev_file = args.dev_file
+model.test_file = args.test_file
 
-@app.route('/annotate_dbpedia', methods=['GET', 'POST', 'OPTIONS'])
-@cross_origin(origins='*')
-def annotate_dbpedia():
-    """Use this API for OKE, KORE, and Derczynski datasets."""
-    return generic_annotate(request.data, "http://dbpedia.org/resource/")
+if use_type_emb and type_emb_option == 'mix':
+    model.gate_hidden = nn.Linear(model.null_vector.shape[0],
+                                    model.null_vector.shape[0])
+    model.gate_hidden.to(device=model.device)
 
-@app.route('/annotate_n3', methods=['GET', 'POST', 'OPTIONS'])
-@cross_origin(origins='*')
-def annotate_n3():
-    """Use this API for N3 Evaluation dataset."""
-    global n3_entity_to_kb_mappings
-    if n3_entity_to_kb_mappings is None:
-        n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
-    return generic_annotate(request.data, n3_entity_to_kb_mappings)
+model.ent2idx = {None: 0}
 
-if __name__ == '__main__':
-    annotator_name = "eee-bert"
+if do_reinit_lm:
+    for module in model.model.cls.predictions.transform.modules():
+        model.model._init_weights(module)
 
-    args = parse_args()
-    print(os.uname(), flush = True)
-    print("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", None), flush = True)
-    print(args, flush = True)
+if use_type_emb and not model.use_ebert_emb:
+    model.wiki_title2qid, model.qid2label, model.qid2parent_qids = load_wikidata(wikidata_entity_types_path)
 
-    model = load_model(args)
+import pickle
+from tqdm import tqdm
 
-    use_type_emb =  args.use_type_emb
-    type_emb_option = args.type_emb_option
-    do_reinit_lm = args.do_reinit_lm
-    wikidata_entity_types_path = args.wikidata_entity_types_path
+with open("gold_documents_new.pkl", 'rb') as file:
+    new_gold_documents = pickle.load(file)
 
-    model.use_ebert_emb = args.use_ebert_emb
-    model.type_emb_option = args.type_emb_option
-    model.use_pos_emb = args.use_pos_emb
-    model.model_dir = args.model_dir
-    model.dev_file = args.dev_file
-    model.test_file = args.test_file
-
-    if use_type_emb and type_emb_option == 'mix':
-        model.gate_hidden = nn.Linear(model.null_vector.shape[0],
-                                        model.null_vector.shape[0])
-        model.gate_hidden.to(device=model.device)
-
-    model.ent2idx = {None: 0}
-
-    if do_reinit_lm:
-        for module in model.model.cls.predictions.transform.modules():
-            model.model._init_weights(module)
-
-    if use_type_emb and not model.use_ebert_emb:
-        model.wiki_title2qid, model.qid2label, model.qid2parent_qids = load_wikidata(wikidata_entity_types_path)
-
-    try:
-        app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
-    finally:
-        if annotate_result:
-            with open(f"annotate_{annotator_name}_result.json", "w", encoding="utf-8") as f:
-                f.write(json.dumps({"annotations": annotate_result}))
+for doc in tqdm(new_gold_documents):
+    eeebert_model(doc["raw_text"])
+    break

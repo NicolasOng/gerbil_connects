@@ -73,3 +73,4 @@ notebook/.ipynb_checkpoints
 .DS_Store
 
 test/
+config.json

@@ -4,3 +4,5 @@ __pycache__/
 model_dirs/
 entity_linking/code/utils/__pycache__/
 test/
+aida_gold_documents.pkl
+gold_documents_new.pkl
