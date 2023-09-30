@@ -5,7 +5,7 @@ import nltk
 nltk.download('punkt')
 from nltk.tokenize import word_tokenize, sent_tokenize
 
-with open('aida_gold_documents.pkl', 'rb') as file:
+with open('gold_documents_new.pkl', 'rb') as file:
     gold_documents = pickle.load(file)
 
 # ==========================

@@ -83,10 +83,14 @@ def genre_model(raw_text):
     # and to the correct format.
     final_preds = []
     for sentence_i, sentence_preds in enumerate(model_preds):
+        sentence_length = len(sentences[sentence_i])
         for pred in sentence_preds:
             s_start = pred[0]
             length = pred[1]
             entity = pred[2]
+            if (s_start >= sentence_length or s_start + length > sentence_length):
+                # for some reason, GENRE sometimes predicts spans that start after the end of the sentence.
+                continue
             d_start = sentence_to_document_character_index(sentences, raw_text, sentence_i, s_start)
             final_pred = (d_start, d_start + length, entity)
             final_preds.append(final_pred)
