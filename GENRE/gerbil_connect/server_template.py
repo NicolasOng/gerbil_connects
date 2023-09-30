@@ -68,8 +68,10 @@ def genre_model(raw_text):
     # more characters than ~2471 - 3375.
     # Can either split every document into sentences,
     # or just those with len > 2470.
+    # update: those errors happen regardless of length - not sure what causes them.
     always_split = True
-    if always_split or (len(raw_text) > 2475):
+    never_split = True
+    if not never_split and (always_split or len(raw_text) > 2475):
         sentences = sentence_tokenize(raw_text)
     else:
         sentences = [raw_text]
@@ -163,7 +165,7 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
-    annotator_name = "<template>"
+    annotator_name = "GENRE"
 
     model = GENRE.from_pretrained(MODEL_LOCATION).eval()
 
