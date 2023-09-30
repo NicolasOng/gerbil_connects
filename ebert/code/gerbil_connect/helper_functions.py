@@ -1,6 +1,10 @@
 import re
 import pickle
 
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import word_tokenize
+
 with open('aida_gold_documents.pkl', 'rb') as file:
     gold_documents = pickle.load(file)
 
@@ -150,3 +154,9 @@ def aida_tokenize(raw_text):
     '''
     gold_doc = aida_get_gold_document(raw_text)
     return gold_doc["words"]
+
+def punkt_tokenize(raw_text):
+    '''
+    tokenizes using nltk's punkt tokenizer.
+    '''
+    return word_tokenize(raw_text)

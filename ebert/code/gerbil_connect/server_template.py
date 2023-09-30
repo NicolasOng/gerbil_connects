@@ -28,7 +28,7 @@ import pickle
 
 from run_aida import EntityLinkingAsLM
 
-from gerbil_connect.helper_functions import aida_tokenize, token_to_character_index, split_into_sentences, split_by_whitespace, split_by_max_len
+from gerbil_connect.helper_functions import aida_tokenize, token_to_character_index, split_into_sentences, split_by_whitespace, split_by_max_len, punkt_tokenize
 
 def ebert_split_too_long_aida_tokens(sentence, model):
     '''
@@ -142,31 +142,22 @@ def extract_dump_res_json(parsed_collection):
     }
 
 def ebert_model(raw_text):
-    gold = False
+    mode = "punkt"
 
     # convert the text given into a list of sentences,
     # where each sentence is a list of strings representing words.
-    if gold:
+    if mode == "gold":
         # tokenize as aida would (looks up from the aida file)
         tokens = aida_tokenize(raw_text)
-        # use ebert's method of splitting documents that are too long
-        sentence_list = ebert_split_too_long_aida_tokens(tokens, model)
-    else:
+    elif mode == "whitespace":
         # split the document by whitespace
         tokens = split_by_whitespace(raw_text)
-        # use ebert's method of splitting documents that are too long
-        sentence_list = ebert_split_too_long_aida_tokens(tokens, model)
-        '''
-        # split the document into sentences (to prevent it being too long)
-        sentences = split_into_sentences(raw_text)
-        # split each sentence into tokens by whitespace
-        long_sentence_list = [split_by_whitespace(sentence) for sentence in sentences]
-        # if any of the tokenized sentences are too long, split them.
-        sentence_list = []
-        for sentence in long_sentence_list:
-            sentence_list += split_by_max_len(sentence)
-        assert all(sentence_list), "Some sentences are empty!"
-        '''
+    elif mode == "punkt":
+        # tokenize with punkt
+        tokens = punkt_tokenize(raw_text)
+
+    # use ebert's method of splitting documents that are too long
+    sentence_list = ebert_split_too_long_aida_tokens(tokens, model)
 
     # use the model to predict spans/entities in each sentence.
     # spans use word/token indices
