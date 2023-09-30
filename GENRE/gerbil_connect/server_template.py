@@ -69,9 +69,11 @@ def genre_model(raw_text):
     # Can either split every document into sentences,
     # or just those with len > 2470.
     # update: those errors happen regardless of length - not sure what causes them.
+    # I'm leaving the sentence splitting and resolution code here, even though it never gets run.
     always_split = True
     never_split = True
-    if not never_split and (always_split or len(raw_text) > 2475):
+    split_into_sentences = not never_split and (always_split or len(raw_text) > 2475)
+    if split_into_sentences:
         sentences = sentence_tokenize(raw_text)
     else:
         sentences = [raw_text]
@@ -84,17 +86,28 @@ def genre_model(raw_text):
     # convert these from sentence to document spans
     # and to the correct format.
     final_preds = []
-    for sentence_i, sentence_preds in enumerate(model_preds):
-        sentence_length = len(sentences[sentence_i])
-        for pred in sentence_preds:
+    if split_into_sentences:
+        for sentence_i, sentence_preds in enumerate(model_preds):
+            sentence_length = len(sentences[sentence_i])
+            for pred in sentence_preds:
+                s_start = pred[0]
+                length = pred[1]
+                entity = pred[2]
+                if (s_start >= sentence_length or s_start + length > sentence_length):
+                    # for some reason, GENRE sometimes predicts spans that start after the end of the sentence.
+                    continue
+                d_start = sentence_to_document_character_index(sentences, raw_text, sentence_i, s_start)
+                final_pred = (d_start, d_start + length, entity)
+                final_preds.append(final_pred)
+    else:
+        sentence_length = len(sentences[0])
+        for pred in model_preds[0]:
             s_start = pred[0]
             length = pred[1]
             entity = pred[2]
             if (s_start >= sentence_length or s_start + length > sentence_length):
-                # for some reason, GENRE sometimes predicts spans that start after the end of the sentence.
                 continue
-            d_start = sentence_to_document_character_index(sentences, raw_text, sentence_i, s_start)
-            final_pred = (d_start, d_start + length, entity)
+            final_pred = (s_start, s_start + length, entity)
             final_preds.append(final_pred)
 
     return final_preds
