@@ -94,6 +94,7 @@ class EfficientEL(LightningModule):
 
         self.encoder.embeddings.word_embeddings.weight.requires_grad_(False)
 
+        #self.hparams.mentions_filename = "/mnt/c/Users/Nicolas Ong/Documents/Data2/Entity Linking/downloads/ea-EL/mentions.json"
         self.entity_detection = EntityDetectionFactor(
             self.hparams.max_length_span,
             self.hparams.dropout,
