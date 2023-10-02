@@ -14,6 +14,27 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+import sys
+
+with open('./gerbil_connect/config.json', 'r') as f:
+    config = json.load(f)
+
+REPO_LOCATION = config['REPO_LOCATION']
+
+sys.path.append(REPO_LOCATION)
+
+from src.model.efficient_el import EfficientEL
+
+def ea_el_get_formatted_spans(preds):
+    final_list = []
+    for pred in preds:
+        start = pred[0]
+        end = pred[1]
+        entity_list = pred[2]
+        entity = entity_list[0][0]
+        final_list.append((start, end, entity))
+    return final_list
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -42,14 +63,20 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def mock_entity_linking_model(raw_text):
-    # TODO replace this function call with a call to your annotator, which receives the raw text and returns annotation
-    #  spans over the raw text in the format of (start character, end character, entity identifier)
-    assert len(raw_text) > 0
-    return [
-        (0, 3, 'Product_demonstration'),
-        (10, 12, 'Example')
-    ]
+def ea_el_model(raw_text):
+    # get the model predictions
+    # the model can handle all the documents GERBIL sends,
+    # so I won't bother with splitting into sentences.
+    model_preds = model.sample([raw_text])
+
+    # format the model output to GEBRIL's format.
+    final_preds = []
+    if (len(model_preds) == 1):
+        # sometimes, the model doesn't return anything.
+        # happens on the document starting with "Delphis Hanover weekly municipal bond yields."
+        final_preds = ea_el_get_formatted_spans(model_preds[0])
+    
+    return final_preds
 
 class GerbilAnnotator:
     """
@@ -61,7 +88,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in mock_entity_linking_model(raw_text):
+        for annotation in ea_el_model(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
@@ -117,7 +144,16 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
-    annotator_name = "<template>"
+    annotator_name = "ea-el"
+
+    # loading the model on GPU and setting the the threshold to the
+    # optimal value (based on AIDA validation set)
+    model = EfficientEL.load_from_checkpoint("./models/model.ckpt", strict=False).eval().cuda()
+    model.hparams.threshold = -3.2
+
+    # loading the KB with the entities
+    model.generate_global_trie()
+
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:

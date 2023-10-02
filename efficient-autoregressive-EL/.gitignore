@@ -131,3 +131,6 @@ dmypy.json
 
 models/
 test/
+data/
+gold_documents_new.pkl
+config.json
