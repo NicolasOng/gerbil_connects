@@ -32,6 +32,8 @@ def ea_el_get_formatted_spans(preds):
         end = pred[1]
         entity_list = pred[2]
         entity = entity_list[0][0]
+        # see get_markdown in src.utils
+        entity = entity.replace(" ", "_")
         final_list.append((start, end, entity))
     return final_list
 
