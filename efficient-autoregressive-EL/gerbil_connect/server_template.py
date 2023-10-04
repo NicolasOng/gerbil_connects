@@ -14,6 +14,7 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+import re
 import sys
 
 with open('./gerbil_connect/config.json', 'r') as f:
@@ -24,8 +25,9 @@ REPO_LOCATION = config['REPO_LOCATION']
 sys.path.append(REPO_LOCATION)
 
 from src.model.efficient_el import EfficientEL
+from gerbil_connect.helper_functions import character_to_character_index
 
-def ea_el_get_formatted_spans(preds):
+def ea_el_get_formatted_spans(preds, raw_text, dataset_text):
     final_list = []
     for pred in preds:
         start = pred[0]
@@ -34,8 +36,24 @@ def ea_el_get_formatted_spans(preds):
         entity = entity_list[0][0]
         # see get_markdown in src.utils
         entity = entity.replace(" ", "_")
-        final_list.append((start, end, entity))
+        # convert the start/end
+        raw_start = character_to_character_index(dataset_text, raw_text, start)
+        raw_end = character_to_character_index(dataset_text, raw_text, end - 1) + 1
+        final_list.append((raw_start, raw_end, entity))
     return final_list
+
+def load_jsonl_file(filename):
+    data = []
+    with open(filename, 'r', encoding='utf-8') as file:
+        for line in file:
+            data.append(json.loads(line.strip()))
+    return data
+
+def remove_whitespaces(s):
+    '''
+    removes whitespaces - spaces, tabs, newlines.
+    '''
+    return re.sub(r'\s+', '', s)
 
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
@@ -66,17 +84,27 @@ def extract_dump_res_json(parsed_collection):
     }
 
 def ea_el_model(raw_text):
+    raw_text_no_whitespace = remove_whitespaces(raw_text)
+    for i, item in enumerate(aida_dataset):
+        if item["input_no_white_space"] == raw_text_no_whitespace:
+            dataset_id = item["id"]
+            dataset_input = item["input"]
+            dataset_candidates = item["candidates"]
+            dataset_anchors = item["anchors"]
+            break
+    #candidates = [candidate for candidate_set in candidate_sets for candidate in candidate_set]
+    
     # get the model predictions
     # the model can handle all the documents GERBIL sends,
     # so I won't bother with splitting into sentences.
-    model_preds = model.sample([raw_text])
+    model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
 
     # format the model output to GEBRIL's format.
     final_preds = []
     if (len(model_preds) == 1):
         # sometimes, the model doesn't return anything.
         # happens on the document starting with "Delphis Hanover weekly municipal bond yields."
-        final_preds = ea_el_get_formatted_spans(model_preds[0])
+        final_preds = ea_el_get_formatted_spans(model_preds[0], raw_text, dataset_input)
     
     return final_preds
 
@@ -148,10 +176,19 @@ def annotate_n3():
 if __name__ == '__main__':
     annotator_name = "ea-el"
 
+    # get the candidate sets
+    aida_test_dataset = load_jsonl_file("./data/aida_test_dataset.jsonl")
+    aida_val_dataset = load_jsonl_file("./data/aida_val_dataset.jsonl")
+    aida_dataset = aida_test_dataset + aida_val_dataset
+    for i, item in enumerate(aida_dataset):
+        item["input_no_white_space"] = remove_whitespaces(item["input"])
+
     # loading the model on GPU and setting the the threshold to the
     # optimal value (based on AIDA validation set)
     model = EfficientEL.load_from_checkpoint("./models/model.ckpt", strict=False).eval().cuda()
     model.hparams.threshold = -3.2
+    model.hparams.test_with_beam_search = False
+    model.hparams.test_with_beam_search_no_candidates = False
 
     # loading the KB with the entities
     model.generate_global_trie()

@@ -134,3 +134,4 @@ test/
 data/
 gold_documents_new.pkl
 config.json
+lightning_logs/
