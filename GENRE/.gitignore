@@ -74,3 +74,5 @@ notebook/.ipynb_checkpoints
 
 test/
 config.json
+gold_documents_new.pkl
+gold_documents_new_02.pkl
