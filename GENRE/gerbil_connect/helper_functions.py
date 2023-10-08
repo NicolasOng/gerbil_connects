@@ -270,7 +270,7 @@ def prior_entity_candidates(candidates_file: str,
                     p_e_m[mention] = entity_candidates
                     mention_total_freq[mention] = absolute_freq
 
-    #p_e_m = {key: [item[1] for item in value] for key, value in p_e_m.items()}
+    p_e_m = {key: [item[1] for item in value] for key, value in p_e_m.items()}
 
     print("duplicate_mentions_cnt: ", duplicate_mentions_cnt)
     print("end of p_e_m reading. wall time:", (time.time() - wall_start)/60, " minutes")
