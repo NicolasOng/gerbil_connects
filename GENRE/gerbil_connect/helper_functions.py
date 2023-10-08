@@ -1,6 +1,8 @@
 import re
 import pickle
 
+import time
+
 import nltk
 nltk.download('punkt')
 from nltk.tokenize import word_tokenize, sent_tokenize
@@ -209,3 +211,69 @@ def remove_whitespaces(s):
     removes whitespaces - spaces, tabs, newlines.
     '''
     return re.sub(r'\s+', '', s)
+
+def prior_entity_candidates(candidates_file: str,
+                            max_candidates:int = 30,
+                            allowed_entities_set=None,
+                            max_mentions = None):
+    """
+    Args:
+    cand_ent_num: how many candidate entities to keep for each mention
+    allowed_entities_set: restrict the candidate entities to only this set. for example
+    the most frequent 1M entities. First this restiction applies and then the cand_ent_num.
+    """
+    '''
+    Adapted from KnowBert
+    '''
+    wall_start = time.time()
+    p_e_m = {}  # for each mention we have a list of tuples (ent_id, score)
+    mention_total_freq = {}  # for each mention of the p_e_m we store the total freq
+                                # this will help us decide which cand entities to take
+    p_e_m_errors = 0
+    incompatible_ent_ids = 0
+    duplicate_mentions_cnt = 0
+    clear_conflict_winner = 0  # both higher absolute frequency and longer cand list
+    not_clear_conflict_winner = 0  # higher absolute freq but shorter cand list
+    with open(candidates_file, encoding="utf-8") as fin:
+
+        for i, line in enumerate(fin):
+
+            if max_mentions is not None and i > max_mentions:
+                break
+            line = line.rstrip()
+            line_parts = line.split("\t")
+            mention = line_parts[0]
+            absolute_freq = int(line_parts[1])
+            entities = line_parts[2:]
+            entity_candidates = []
+            for e in entities:
+                if len(entity_candidates) >= max_candidates:
+                    break
+                ent_id, score, name = [x.strip() for x in e.split(',', 2)]
+                if allowed_entities_set is not None and name not in allowed_entities_set:
+                    pass
+                else:
+                    entity_candidates.append((ent_id, name, float(score)))
+            if entity_candidates:
+                if mention in p_e_m:
+                    duplicate_mentions_cnt += 1
+                    #print("duplicate mention: ", mention)
+                    if absolute_freq > mention_total_freq[mention]:
+                        if len(entity_candidates) > len(p_e_m[mention]):
+                            clear_conflict_winner += 1
+                        else:
+                            not_clear_conflict_winner += 1
+                        p_e_m[mention] = entity_candidates
+                        mention_total_freq[mention] = absolute_freq
+                else:
+                    # for each mention we have a list of tuples (ent_id, name, score)
+                    p_e_m[mention] = entity_candidates
+                    mention_total_freq[mention] = absolute_freq
+
+    #p_e_m = {key: [item[1] for item in value] for key, value in p_e_m.items()}
+
+    print("duplicate_mentions_cnt: ", duplicate_mentions_cnt)
+    print("end of p_e_m reading. wall time:", (time.time() - wall_start)/60, " minutes")
+    print("p_e_m_errors: ", p_e_m_errors)
+    print("incompatible_ent_ids: ", incompatible_ent_ids)
+    return p_e_m

@@ -14,7 +14,7 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
-from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index
+from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index, prior_entity_candidates
 
 import sys
 
@@ -26,6 +26,7 @@ with open('./gerbil_connect/config.json', 'r') as f:
 MODEL_LOCATION = config['MODEL_LOCATION']
 GENRE_REPO_LOCATION = config['GENRE_REPO_LOCATION']
 FAIRSEQ_REPO_LOCATION = config['FAIRSEQ_REPO_LOCATION']
+CANDIDATE_FILE = config['CANDIDATE_FILE']
 
 sys.path.append(GENRE_REPO_LOCATION)
 sys.path.append(FAIRSEQ_REPO_LOCATION)
@@ -81,7 +82,7 @@ def genre_model(raw_text):
     # use the model to get the spans/entities
     # in the form [[(start, length, entity), ...], ...],
     # a list of spans for each given sentence.
-    model_preds = get_entity_spans(model, sentences)
+    model_preds = get_entity_spans(model, sentences, mention_to_candidates_dict=mention_to_candidates_dict)
 
     # convert these from sentence to document spans
     # and to the correct format.
@@ -181,6 +182,7 @@ if __name__ == '__main__':
     annotator_name = "GENRE"
 
     model = GENRE.from_pretrained(MODEL_LOCATION).eval()
+    mention_to_candidates_dict = prior_entity_candidates(candidates_file=CANDIDATE_FILE)
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
