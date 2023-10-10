@@ -66,15 +66,7 @@ def extract_dump_res_json(parsed_collection):
 
 def genre_model(raw_text):
     # Split the raw text into sentences.
-    # The model can't handle sentences with
-    # more characters than ~2471 - 3375.
-    # Can either split every document into sentences,
-    # or just those with len > 2470.
-    # update: those errors happen regardless of length - not sure what causes them.
-    # I'm leaving the sentence splitting and resolution code here, even though it never gets run.
-    always_split = True
-    never_split = True
-    split_into_sentences = not never_split and (always_split or len(raw_text) > 2475)
+    split_into_sentences = False
     if split_into_sentences:
         sentences = sentence_tokenize(raw_text)
     else:

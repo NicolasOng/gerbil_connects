@@ -128,13 +128,28 @@ def get_entity_spans_post_processing(sentences):
 def _get_entity_spans(
     model, input_sentences, prefix_allowed_tokens_fn, redirections=None,
 ):
+    pre_processed_sentences = get_entity_spans_pre_processing(input_sentences)
     output_sentences = model.sample(
-        get_entity_spans_pre_processing(input_sentences),
+        pre_processed_sentences,
         prefix_allowed_tokens_fn=prefix_allowed_tokens_fn,
     )
 
+    # error resolution - if the model's output is in the wrong format, just give back the input text.
+    # sometimes the model makes no predictions for a sentence.
+    # eg: ["sentence 1"] -> [[]]
+    # and sometimes the "text" for a sentence's predictions is a list of strings.
+    # eg: ["sentence 1"] -> [[{"text": ["{ sentence } [ sentences ] { 1 } [ one ] { sentence } [ sentences ]", "", "", ...], "score": 0.2439}, {...}, ...]]
+    output_sentences_text = []
+    for i, e in enumerate(output_sentences):
+        if e and isinstance(e[0].get("text"), str):
+            output_sentences_text.append(e[0]["text"])
+        else:
+            print("ERROR: ", pre_processed_sentences[i])
+            output_sentences_text.append(pre_processed_sentences[i])
+
     output_sentences = get_entity_spans_post_processing(
-        [e[0]["text"] for e in output_sentences]
+        #[e[0]["text"] for e in output_sentences]
+        output_sentences_text
     )
 
     return get_entity_spans_finalize(
