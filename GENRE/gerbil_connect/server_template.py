@@ -14,12 +14,14 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
-from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index
+from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index, aida_get_gold_document, character_to_character_index
 
 import sys
 import pickle
 
 import json
+
+import urllib.parse
 
 with open('./gerbil_connect/config.json', 'r') as f:
     config = json.load(f)
@@ -106,6 +108,43 @@ def genre_model(raw_text):
 
     return final_preds
 
+def genre_model2(raw_text):
+    # get the text with spaces
+    aida_document = aida_get_gold_document(raw_text)
+    text_with_spaces = aida_document["doc_spaces"]
+
+    # find that in the list of GENRE predictions
+    with open("dev-out.wiki_ids.jsonl", 'r') as dev_file, open("test-out.wiki_ids.jsonl", 'r') as test_file:
+        genre_pred_line = None
+        for line in dev_file:
+            if genre_pred_line is not None: break
+            line_data = json.loads(line)
+            if (line_data["text"] == text_with_spaces):
+                genre_pred_line = line_data
+        for line in test_file:
+            if genre_pred_line is not None: break
+            line_data = json.loads(line)
+            if (line_data["text"] == text_with_spaces):
+                genre_pred_line = line_data
+    
+    # with the predictions, format them.
+    final_preds = []
+    for preds in genre_pred_line["entity_mentions"]:
+        span = preds["span"]
+        entity_id = preds['wiki_id']
+        start = span[0]
+        end = span[1]
+        # need to fix the span indices because GENRE is fed a tokenized input here
+        r_start = character_to_character_index(text_with_spaces, raw_text, start)
+        r_end = character_to_character_index(text_with_spaces, raw_text, end - 1) + 1
+        # this does stuff like: Zweibr%C3%BCcken -> Zweibrücken
+        # not sure if this is what GERBIL wants...
+        d_entity = urllib.parse.unquote(entity_id)
+        pred = (r_start, r_end, d_entity)
+        final_preds.append(pred)
+
+    return final_preds
+
 class GerbilAnnotator:
     """
     The annotator class must implement a function with the following signature
@@ -116,7 +155,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in genre_model(raw_text):
+        for annotation in genre_model2(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
