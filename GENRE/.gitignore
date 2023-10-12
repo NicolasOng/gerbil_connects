@@ -76,3 +76,5 @@ test/
 config.json
 gold_documents_new.pkl
 gold_documents_new_02.pkl
+dev-out.wiki_ids.jsonl
+test-out.wiki_ids.jsonl
