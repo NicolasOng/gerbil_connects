@@ -14,7 +14,7 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
-from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index, aida_get_gold_document, character_to_character_index
+from gerbil_connect.helper_functions import sentence_tokenize, sentence_to_document_character_index, aida_get_gold_document, character_to_character_index, punkt_tokenize, aida_tokenize
 
 import sys
 import pickle
@@ -37,6 +37,10 @@ sys.path.append(FAIRSEQ_REPO_LOCATION)
 from genre.fairseq_model import GENRE
 from genre.entity_linking import get_end_to_end_prefix_allowed_tokens_fn_fairseq as get_prefix_allowed_tokens_fn
 from genre.utils import get_entity_spans_fairseq as get_entity_spans
+
+from model import Model
+from transform_predictions import compute_labels, get_mapping
+from qid_to_wikipedia import qid_to_name
 
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
@@ -66,7 +70,15 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def genre_model(raw_text):
+def genre_model1(raw_text):
+    '''
+    This function takes in raw text, runs it through the genre model,
+    and returns the predictions.
+    Splits into sentences as GENRE fails on longer strings,
+    And gives GENRE a mention_trie and mention_to_candidate_dict to help
+    it predict.
+    These two objects provided by Elevant.
+    '''
     # Split the raw text into sentences.
     split_into_sentences = False
     if split_into_sentences:
@@ -109,6 +121,11 @@ def genre_model(raw_text):
     return final_preds
 
 def genre_model2(raw_text):
+    '''
+    This one just reads Elevant's predictions for the given raw text,
+    and returns the results.
+    The model is run on all the text beforehand.
+    '''
     # get the text with spaces
     aida_document = aida_get_gold_document(raw_text)
     text_with_spaces = aida_document["doc_spaces"]
@@ -145,6 +162,60 @@ def genre_model2(raw_text):
 
     return final_preds
 
+def genre_model3(raw_text):
+    '''
+    This function runs Elevant's model in real time,
+    instead of just reading the predictions.
+    Based off of their main.py and transform_predictions.py
+    '''
+    # tokenize the input text
+    # Elevant's model ran on tokenized text, instead of the text like the one given.
+    # eg: Lebed , Chechens sign framework political deal . KHASAVYURT , Russia 1996-08-31
+    tokenize_mode = "punkt"
+    if tokenize_mode == "punkt":
+        tokenized_string = " ".join(punkt_tokenize(raw_text))
+    elif tokenize_mode == "aida":
+        tokenized_string = " ".join(aida_tokenize(raw_text))
+    
+    # prepare the text
+    evaluation_span = (0, len(tokenized_string))
+    before = tokenized_string[:evaluation_span[0]]
+    after = tokenized_string[evaluation_span[1]:]
+    text = tokenized_string[evaluation_span[0]:evaluation_span[1]]
+
+    # run the model
+    prediction = model.predict_iteratively(text)
+    genre_text = before + prediction + after
+
+    # convert from genre text to (start, end, label)
+    wikipedia_labels = compute_labels(tokenized_string, genre_text, 0)
+
+    # convert from label to qid to wiki name, and fix the span indices.
+    final_preds = []
+    for start, end, label in wikipedia_labels:
+        qid = label
+        if wikipedia:
+            qid = "https://en.wikipedia.org/wiki/" + label.replace(" ", "_")
+        else:
+            if label in mapping:
+                qid = mapping[label]
+            elif label in redirects:
+                redirected = redirects[label]
+                if redirected in mapping:
+                    qid = mapping[redirected]
+        print(start, end, label, qid)
+        wiki_name = qid_to_name.get(qid, "")
+        # need to fix the span indices because GENRE is fed a tokenized input here
+        r_start = character_to_character_index(tokenized_string, raw_text, start)
+        r_end = character_to_character_index(tokenized_string, raw_text, end - 1) + 1
+        # this does stuff like: Zweibr%C3%BCcken -> Zweibrücken
+        # not sure if this is what GERBIL wants...
+        d_entity = urllib.parse.unquote(wiki_name)
+        pred = (r_start, r_end, d_entity)
+        final_preds.append(pred)
+    
+    return final_preds
+
 class GerbilAnnotator:
     """
     The annotator class must implement a function with the following signature
@@ -155,7 +226,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in genre_model2(raw_text):
+        for annotation in genre_model3(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
@@ -213,13 +284,30 @@ def annotate_n3():
 if __name__ == '__main__':
     annotator_name = "GENRE"
 
-    model = GENRE.from_pretrained(MODEL_LOCATION).eval()
+    genre_mode = "genre3"
 
-    with open("mention_to_candidates_dict.pkl", "rb") as f:
-        mention_to_candidates_dict = pickle.load(f)
-    
-    with open("mention_trie.pkl", "rb") as f:
-        mention_trie = pickle.load(f)
+    if (genre_mode == "genre1"):
+        model = GENRE.from_pretrained(MODEL_LOCATION).eval()
+
+        with open("mention_to_candidates_dict.pkl", "rb") as f:
+            mention_to_candidates_dict = pickle.load(f)
+        
+        with open("mention_trie.pkl", "rb") as f:
+            mention_trie = pickle.load(f)
+    elif genre_mode == "genre3":
+        print("load model...")
+        # TODO: make the two optional.
+        model = Model(yago=True,
+                    mention_trie="data/mention_trie.pkl",
+                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl")
+        wikipedia = False
+        if not wikipedia:
+            print("read mapping...")
+            mapping = get_mapping()
+
+            print("load redirects...")
+            with open("data/elevant/link_redirects.pkl", "rb") as f:
+                redirects = pickle.load(f)
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
