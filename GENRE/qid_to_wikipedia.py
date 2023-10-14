@@ -22,5 +22,5 @@ def do_jsonl(in_f, out_f):
             # Step 5: Write the modified line back
             output_file.write(json.dumps(data) + '\n')
 
-do_jsonl("dev-out.qids.jsonl", "dev-out.wiki_ids.jsonl")
+#do_jsonl("dev-out.qids.jsonl", "dev-out.wiki_ids.jsonl")
 #do_jsonl("test-out.qids.jsonl", "test-out.wiki_ids.jsonl")

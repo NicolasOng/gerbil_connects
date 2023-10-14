@@ -299,7 +299,8 @@ if __name__ == '__main__':
         # TODO: make the two optional.
         model = Model(yago=True,
                     mention_trie="data/mention_trie.pkl",
-                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl")
+                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
+                    candidates_trie=None)
         wikipedia = False
         if not wikipedia:
             print("read mapping...")

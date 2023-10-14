@@ -7,6 +7,15 @@ from genre.fairseq_model import GENRE
 from genre.entity_linking import get_end_to_end_prefix_allowed_tokens_fn_fairseq as get_prefix_allowed_tokens_fn
 from helper_pickle import pickle_load
 
+import json
+
+with open('./gerbil_connect/config.json', 'r') as f:
+    config = json.load(f)
+
+MODEL_LOCATION = config['MODEL_LOCATION']
+GENRE_REPO_LOCATION = config['GENRE_REPO_LOCATION']
+FAIRSEQ_REPO_LOCATION = config['FAIRSEQ_REPO_LOCATION']
+CANDIDATE_FILE = config['CANDIDATE_FILE']
 
 class Model:
     def __init__(self,
@@ -18,7 +27,7 @@ class Model:
             model_name = "models/fairseq_e2e_entity_linking_aidayago"
         else:
             model_name = "models/fairseq_e2e_entity_linking_wiki_abs"
-        self.model = GENRE.from_pretrained(model_name).eval()
+        self.model = GENRE.from_pretrained(MODEL_LOCATION).eval()
         if torch.cuda.is_available():
             print("move model to GPU...")
             self.model = self.model.cuda()
