@@ -16,6 +16,7 @@ from gerbil_connect.nif_parser import NIFParser
 
 import re
 import sys
+import argparse
 
 with open('./gerbil_connect/config.json', 'r') as f:
     config = json.load(f)
@@ -85,6 +86,8 @@ def extract_dump_res_json(parsed_collection):
 
 def ea_el_model(raw_text):
     raw_text_no_whitespace = remove_whitespaces(raw_text)
+    dataset_id = None
+    dataset_input = raw_text
     for i, item in enumerate(aida_dataset):
         if item["input_no_white_space"] == raw_text_no_whitespace:
             dataset_id = item["id"]
@@ -97,7 +100,10 @@ def ea_el_model(raw_text):
     # get the model predictions
     # the model can handle all the documents GERBIL sends,
     # so I won't bother with splitting into sentences.
-    model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
+    if args.use_candidate_sets and dataset_id is not None:
+        model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
+    else:
+        model_preds = model.sample([dataset_input])
 
     # format the model output to GEBRIL's format.
     final_preds = []
@@ -175,6 +181,10 @@ def annotate_n3():
 
 if __name__ == '__main__':
     annotator_name = "ea-el"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--use-candidate-sets", action="store_true")
+    args = parser.parse_args()
 
     # get the candidate sets
     aida_test_dataset = load_jsonl_file("./data/aida_test_dataset.jsonl")
