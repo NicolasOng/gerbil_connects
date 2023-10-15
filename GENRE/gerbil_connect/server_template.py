@@ -23,6 +23,8 @@ import json
 
 import urllib.parse
 
+import argparse
+
 with open('./gerbil_connect/config.json', 'r') as f:
     config = json.load(f)
 
@@ -283,8 +285,11 @@ def annotate_n3():
 
 if __name__ == '__main__':
     annotator_name = "GENRE"
-
     genre_mode = "genre3"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--use-candidate-sets", action="store_true")
+    args = parser.parse_args()
 
     if (genre_mode == "genre1"):
         model = GENRE.from_pretrained(MODEL_LOCATION).eval()
@@ -296,11 +301,18 @@ if __name__ == '__main__':
             mention_trie = pickle.load(f)
     elif genre_mode == "genre3":
         print("load model...")
-        # TODO: make the two optional.
-        model = Model(yago=True,
-                    mention_trie="data/mention_trie.pkl",
-                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
-                    candidates_trie=None)
+        if args.use_candidate_sets:
+            print("...with candidate sets...")
+            model = Model(yago=True,
+                        mention_trie="data/mention_trie.pkl",
+                        mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
+                        candidates_trie=None)
+        else:
+            print("...without candidate sets...")
+            model = Model(yago=True,
+                        mention_trie=None,
+                        mention_to_candidates_dict=None,
+                        candidates_trie=None)
         wikipedia = False
         if not wikipedia:
             print("read mapping...")
