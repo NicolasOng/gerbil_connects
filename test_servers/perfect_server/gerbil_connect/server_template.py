@@ -14,6 +14,9 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+import re
+import pickle
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -29,6 +32,35 @@ n3_entity_to_kb_mappings = None
 
 lock = Lock()
 
+with open('gold_documents_new_02.pkl', 'rb') as file:
+    gold_documents = pickle.load(file)
+
+def aida_get_gold_document(raw_text):
+    '''
+    given the raw text from GERBIL, this gets the "gold document" from a file.
+    It includes:
+    - words: the tokenized sentence. eg: ['CRICKET', '-', 'ENGLISH', ...]
+    - doc_no_whitespace: ''.join(words)
+    - doc_spaces: ' '.join(words)
+    - gold_spans: refers to the tokens. eg: [[2, 2], [13, 14], ...]
+    - gold_entities: same length as the span list. eg: ['London', 'Phil_Simmons', ...]
+    - raw_text_gold_spans
+    '''
+    target_string = remove_whitespaces(raw_text)
+    for doc in gold_documents:
+        if doc["doc_no_whitespace"] == target_string:
+            matching_document = doc
+            break
+    if matching_document is None:
+        print("No matching document found for: \n" + target_string)
+    return matching_document
+
+def remove_whitespaces(s):
+    '''
+    removes whitespaces - spaces, tabs, newlines.
+    '''
+    return re.sub(r'\s+', '', s)
+
 def get_n3_entity_to_kb_mappings():
     kb_file = pathlib.Path(os.path.abspath(__file__)).parent.parent.parent / "resources" / "data" / "n3_kb_mappings.json"
     knowledge_base = json.load(kb_file.open("r"))
@@ -42,14 +74,19 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def mock_entity_linking_model(raw_text):
-    # TODO replace this function call with a call to your annotator, which receives the raw text and returns annotation
-    #  spans over the raw text in the format of (start character, end character, entity identifier)
-    assert len(raw_text) > 0
-    return [
-        (0, 3, 'Product_demonstration'),
-        (10, 12, 'Example')
-    ]
+def perfect_entity_linking_model(raw_text):
+    gold_doc = aida_get_gold_document(raw_text)
+
+    model_preds = []
+    for i, _ in enumerate(gold_doc["gold_spans"]):
+        gold_span = gold_doc["raw_text_gold_spans"][i]
+        gold_entity = gold_doc["gold_entities"][i]
+        start = gold_span[0]
+        end = gold_span[1]
+        pred = (start, end, gold_entity)
+        model_preds.append(pred)
+    
+    return model_preds
 
 class GerbilAnnotator:
     """
@@ -61,7 +98,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in mock_entity_linking_model(raw_text):
+        for annotation in perfect_entity_linking_model(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
@@ -117,7 +154,7 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
-    annotator_name = "<template>"
+    annotator_name = "perfect"
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:
