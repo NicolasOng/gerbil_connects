@@ -17,6 +17,9 @@ from gerbil_connect.nif_parser import NIFParser
 import re
 import pickle
 
+# use the ebert or eeebert conda environments.
+from kb.wiki_linking_util import WikiCandidateMentionGenerator
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -79,12 +82,24 @@ def perfect_entity_linking_model(raw_text):
 
     model_preds = []
     for i, _ in enumerate(gold_doc["gold_spans"]):
+        # get the gold span, entity, and mention
         gold_span = gold_doc["raw_text_gold_spans"][i]
         gold_entity = gold_doc["gold_entities"][i]
         start = gold_span[0]
         end = gold_span[1]
-        pred = (start, end, gold_entity)
+        gold_mention = raw_text[start:end]
+        candidate_entities = candidate_generator.process(gold_mention.split())
+        pred_entity = ""
+        if gold_entity in candidate_entities:
+            pred_entity = gold_entity
+        elif len(candidate_entities) > 0:
+            pred_entity = candidate_entities[0]
+        pred = (start, end, pred_entity)
         model_preds.append(pred)
+        if (gold_entity not in candidate_entities):
+            print(gold_entity)
+            print(candidate_entities)
+            print("")
     
     return model_preds
 
@@ -154,7 +169,10 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
-    annotator_name = "perfect"
+    annotator_name = "perfect_candidates"
+
+    candidate_generator = WikiCandidateMentionGenerator(entity_world_path = None, max_candidates = 1000) 
+
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:
