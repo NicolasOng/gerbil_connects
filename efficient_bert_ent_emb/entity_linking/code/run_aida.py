@@ -295,7 +295,14 @@ class EntityLinkingAsLM:
 
     def data2samples(self, data, verbose = True):
         samples = []
+        # sentence is just a normal (tokenized) sentence like CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY .
+        # spans is usually just an empty list.
         for data_idx, (sentence, spans) in tqdm(data.items(), disable = not verbose, desc = "Converting data to samples"):
+            # gets candidate spans (all 5-long tokens with candidate entities), 
+            # candidate entities (a list for each candidate span), 
+            # and candidate priors (one for each candidate entity)
+            # if there are no candidate spans w/ candidate entities found, a placeholder (-1, -1) span is returned, with a placeholder candidate entity '@@PADDING@@', and prior (1).
+            # this breaks the code.
             mentions = self.candidate_generator.get_mentions_raw_text(" ".join(sentence), whitespace_tokenize=True)
             span2candidates = {}
 
@@ -338,6 +345,8 @@ class EntityLinkingAsLM:
                     if not entity in self.ent2idx:
                         self.ent2idx[entity] = len(self.ent2idx)
                 
+                # here is where the [MASK] token is added (with "\" and "*", see the patterns)
+                # this breaks with the placeholder candidate.
                 sentence_with_pattern = sentence[:start] + self.left_pattern + sentence[start:end+1] + self.right_pattern + sentence[end+1:]
 
                 present_entities = [token for token in sentence_with_pattern if token.startswith(self.ent_prefix)]
@@ -356,7 +365,8 @@ class EntityLinkingAsLM:
 
                 if not self.do_use_priors:
                     biases = None
-
+                
+                # mask position is set here.
                 mask_pos = sample_tokenized.index("[MASK]")
 
                 sample_tokenized = ["[CLS]"] + sample_tokenized + ["[SEP]"]
@@ -827,17 +837,21 @@ class EntityLinkingAsLM:
         else:
             max_len = self.max_len
         
+        # creating input_ids and attention mask tensors - one row for each sample, and each row is the length of the longest sample,
+        # by amount of tokens.
         input_ids = torch.zeros((len(samples), max_len)).to(dtype = torch.long)
         input_ids = input_ids.to(device=self.device)
         attention_mask = torch.zeros_like(input_ids)
         attention_mask = attention_mask.to(device=self.device)
 
+        # for each row in input_ids, populate it with the sample's input ids.
         for i, sample in enumerate(samples):
             assert len(sample.tokenized) <= max_len
             assert len(sample.tokenized) == len(sample.input_ids)
             input_ids[i,:len(sample.input_ids)] = torch.tensor(sample.input_ids).to(dtype = input_ids.dtype)
             attention_mask[i,:len(sample.input_ids)] = 1
 
+        # transform these input ids with positional embeddings (or not)
         if self.use_pos_emb:
             input_embeddings = self.bert_pos_emb(input_ids)
         else:
@@ -847,6 +861,7 @@ class EntityLinkingAsLM:
         idx2ent = {self.ent2idx[ent]: ent for ent in self.ent2idx}
         for i, sample in enumerate(samples):
             for j, token in enumerate(sample.tokenized):
+                # for the mask token in the input embeddings...
                 if j == sample.mask_pos:
                     assert token == "[MASK]"
                     if self.do_prime_mask:
@@ -858,6 +873,7 @@ class EntityLinkingAsLM:
                         candidate_embeddings = [self.get_ent_emb_from_type_knowledge(wiki_title) for wiki_title in wiki_titles]
                         for biase, cand_emb in zip(biases, candidate_embeddings):
                             weighted_ent = weighted_ent + biase * cand_emb
+                        # ...replace it with a custom embedding that combines the candidate embeddings weighted by their biases.
                         input_embeddings[i,j,:] = weighted_ent.to(device=input_embeddings.device)
                         #  input_embeddings[i,j,:] = torch.tensor(np.mean(candidate_embeddings, 0)).to(dtype = input_embeddings.dtype)
 
@@ -905,31 +921,42 @@ class EntityLinkingAsLM:
             all_true.extend([sample.correct_idx for sample in batch])
             mask_positions = [sample.mask_pos for sample in batch]
 
+            # make the input dict for the model.
+            # here is where the mask token for predicting the entity is replaced with a weighted sum of candidate entity embeddings.
             input_dict = self.make_input_dict(batch)
             label_ids = input_dict.pop("label_ids")
         
+            # after this bit of code,
+            # all_entities is a list of all the candidate entities for each sample, where each sample has a single candidate span
+            # ranges tells which part of the list corresponds to which sample.
             all_entities, ranges = [], []
             for j, sample in enumerate(batch):
                 all_entities.extend(sample.candidate_ids[1:])
                 ranges.append([len(all_entities) - len(sample.candidate_ids[1:]), len(all_entities)])
             
+            # runs the input through the model, then (for each sample) gets the token embedding at the mask position
             all_outputs = self.model(**input_dict)[0]
             outputs = torch.stack([all_outputs[j, position] for j, position in enumerate(mask_positions)])
 
-
+            # gets entity embeddings for each entity in the all_entities list.
+            # first bit here gets the surface embeddings.
             wiki_titles = [idx2ent[idx] for idx in all_entities]
             wiki_title_type_embs = [self.get_ent_emb_from_type_knowledge(wiki_title) for wiki_title in wiki_titles]
             batch_entity_embedding = torch.stack(wiki_title_type_embs).to(device=self.device)
 
+            #this part gets the entity embeddings,
             wiki_title_surface_embs = [self.get_ent_surface_emb(wiki_title) for wiki_title in wiki_titles]
             batch_surface_embedding = torch.stack(wiki_title_surface_embs).to(device=self.device)
             gate_out = torch.sigmoid(self.gate_hidden(batch_entity_embedding))
+            # then this part combines the two.
             batch_entity_embedding = (1 - gate_out) * batch_entity_embedding  + gate_out * batch_surface_embedding
 
             batch_loss = 0
             for j, sample in enumerate(batch):
                 assert len(sample.candidate_ids) == ranges[j][1] - ranges[j][0] + 1
+                # gets the candidate embeddings for this sample, and adds a null/zero candidate embedding.
                 candidates_with_zero = torch.cat([self.null_vector.unsqueeze(0), batch_entity_embedding[ranges[j][0]:ranges[j][1]]])
+                # matmuls it with the mask output embedding to get logits - probability for each candidate.
                 logits = candidates_with_zero.matmul(outputs[j])
                 
                 if self.do_use_priors:
@@ -940,6 +967,7 @@ class EntityLinkingAsLM:
                     # number of candidates for current span.
                     logits += torch.cat([self.null_bias, biases])
                 
+                # softmax to get the probabilities.
                 probas = torch.softmax(logits, -1)
 
                 if mode == "eval":
@@ -948,7 +976,9 @@ class EntityLinkingAsLM:
             
                 if mode == "pred":
                     probas_numpy = probas.detach().cpu().numpy()
+                    # get the entity id for each entity in the probabilities
                     entities = [None] + [idx2ent[i] for i in sample.candidate_ids[1:]]
+                    # return the predicted entity, the sample's start/end, and the other candidates/probs.
                     all_pred_spans.append((entities[probas_numpy.argmax()], sample.data_idx, sample.start, sample.end, 
                         [(ent, float(p)) for ent, p in zip(entities, probas_numpy)]))
 
