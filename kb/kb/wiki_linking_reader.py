@@ -120,9 +120,26 @@ class LinkingReader(DatasetReader):
                 else:
                     words.append(line)
         if words:
+            # an instance for the instance list returned by read() is returned after each separator in the text file. (or at the end).
+            # the input to get_mentions_with_gold looks like this:
+            # "CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY ."
+            # [(2, 2)]
+            # ["Leicestershire_County_Cricket_Club"]
+            # get_mentions_with_gold is defined in kb/wiki_linking_util.py,
+            # as a method in WikiCandidateMentionGenerator
+            # the output for get_mentions_with_gold is a dict with:
+            # the input text tokenized, a list of candidate spans,
+            # a list of candidate entities for each span,
+            # priors for each candidate, and the gold entities for each span.
             processed = self.mention_generator.get_mentions_with_gold(" ".join(words), gold_spans,
                                                                       gold_entities, whitespace_tokenize=True, keep_gold_only=self.entity_disambiguation_only)
             if processed["candidate_spans"]:
+                # this converts the above output into an allennlp Instance,
+                # but for wiki_and_wordnet, it also generates extra candidates
+                # by running the text through get_mentions_raw_text.
+                # note that it uses a wordnet_mention_generator, not a
+                # WikiCandidateMentionGenerator, like self.mention_generator
+                # it is defined in kb/wordnet.py
                 yield self.text_to_instance(doc_id=doc_id, **processed)
 
     def text_to_instance(self,

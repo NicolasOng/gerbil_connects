@@ -181,6 +181,12 @@ class WikiCandidateMentionGenerator(MentionGenerator):
              'candidate_entity_priors': List[List[float]]
         }
         """
+        # this method is very similar to the get_mentions_with_gold method,
+        # except it doesn't return the gold entities for each span at the end.
+        # it also doesn't add the gold spans to the candidate span list.
+        # and the returned dict has key "candidate_entity_priors",
+        # not "candidate_entity_prior"
+
         if whitespace_tokenize:
             tokens = self.whitespace_tokenizer(text)
         else:
@@ -237,7 +243,10 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         if keep_gold_only:
             spans_with_gold = set(gold_spans_to_entities.keys())
         else:
+            # returns a list of all possible spans up to 5 tokens long,
+            # for the tokenized text. minus the ones caught by the filter.
             all_spans = enumerate_spans(tokens, max_span_width=5, filter_function=span_filter_func)
+            # appends the gold spans to that list of candidate spans.
             spans_with_gold = set().union(all_spans, [tuple(span) for span in gold_spans])
 
         spans = []
@@ -245,6 +254,9 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         gold_entities = []
         priors = []
         for span in spans_with_gold:
+            # generate candidates for each span.
+            # basically a list like (entity_id, entity_candidate, prior)
+            # could be empty.
             candidate_entities = self.process(tokens[span[0]:span[1] + 1])
 
             gold_entity = gold_spans_to_entities.get(span, "@@NULL@@")
@@ -258,12 +270,16 @@ class WikiCandidateMentionGenerator(MentionGenerator):
             candidate_names = [x[1] for x in candidate_entities]
             candidate_priors = [x[2] for x in candidate_entities]
             sum_priors = sum(candidate_priors)
+            # append the span, candidate entities, priors, and the gold entity
+            # to lists.
             priors.append([x/sum_priors for x in candidate_priors])
 
             spans.append(list(span))
             entities.append(candidate_names)
             gold_entities.append(gold_entity)
 
+        # return those lists.
+        # note that knowbert uses the gold_entities to evaluate itself.
         return {
             "tokenized_text": tokens,
             "candidate_spans": spans,

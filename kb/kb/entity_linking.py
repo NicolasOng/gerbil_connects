@@ -172,6 +172,10 @@ class EntityLinkingBase(Model):
         # will call F1Metric with predicted and gold entities encoded as
         # [(start, end), entity_id]
 
+        # ... and finally, here is where the model actually makes the
+        # entity linking predictions.
+        # it uses _decode(), and passes in linking_scores, candidate_spans,
+        # and candidate_entities.
         predicted_entities = self._decode(
                     linking_scores, candidate_spans, candidate_entities
         )
@@ -210,6 +214,8 @@ class EntityLinkingBase(Model):
             predicted_entities_for_f1[p_batch_index].append((span, pi))
             predicted_spans_for_f1[p_batch_index].append((span, "ENT"))
 
+        # this is where the f1 metric is calculated and stored.
+        # F1Metric() is defined in kb/common.py
         self._f1_metric_untyped(predicted_spans_for_f1, gold_spans_for_f1)
         self._f1_metric(predicted_entities_for_f1, gold_entities_for_f1)
 
@@ -261,6 +267,9 @@ class EntityLinkingBase(Model):
         return ret
 
     def get_metrics(self, reset: bool = False):
+        # the important one is el_f1.
+        # F1Metric() is defined in kb/common.py
+        # this is called by get_metrics in EntityLinkingWithCandidateMentions in kb/knowbert.py
         precision, recall, f1_measure = self._f1_metric.get_metric(reset)
         precision_span, recall_span, f1_measure_span = self._f1_metric_untyped.get_metric(reset)
         metrics = {
@@ -280,7 +289,8 @@ class EntityLinkingBase(Model):
                       candidate_spans,
                       linking_scores,
                       gold_entities):
-
+        
+        # both paths lead to _compute_f1().
         if self.loss_type == 'margin':
             return self._compute_margin_loss(
                     candidate_entities, candidate_spans, linking_scores, gold_entities

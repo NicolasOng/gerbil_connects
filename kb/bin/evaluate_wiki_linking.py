@@ -122,9 +122,24 @@ def run_evaluation(evaluation_file,
     iterator = DataIterator.from_params(Params({"type": "basic", "batch_size": 16}))
     iterator.index_with(vocab)
 
+    # uses the reader to read the evaluation file.
+    # (the aida_dev.txt or _test.txt file)
+    # creates a list of instances.
+    # reader defined in kb/wiki_linking_reader.py
+    # each instance is a tokenized text, candidate mentions,
+    # candidate entities/priors for each mention,
+    # gold entities for each mention (used in the model for evaluation)
+    # and (if wiki_and_wordnet is true), extra candidates - another set of
+    # candidate mentions/entities/priors, but generated from
+    # wordnet instead of wiki.
     instances = reader.read(evaluation_file)
 
     for batch_no, batch in enumerate(iterator(instances, shuffle=False, num_epochs=1)):
+        # the iterator object converts the instances to batches.
+        # basically makes the input readable for the model,
+        # but not for humans.
+        # eg: tokenized text goes from  ['This', 'apple', 'is', ...]
+        # to tensor([[  101,  2023,  6207, ...])
         b = move_to_device(batch, 0)
 
         b['candidates'] = {'wiki': {
@@ -154,10 +169,35 @@ def run_evaluation(evaluation_file,
             bb = move_to_device(b, 0)
         else:
             bb = b
-
+        
+        # the tokenized text, candidate mentions/entities/priors,
+        # and gold entities are fed into the model.
+        # Predictions are made within the model.
+        # the model's performance is evaluated and stored within the model.
+        # get_metrics() retreives this stored performance.
+        # the model is defined in kb/knowbert.py as KnowBert.
         loss = model(**bb)
         if batch_no % 100 == 0:
+            # to see where the metrics come from,
+            # see the get_metrics method of KnowBert.
             print(model.get_metrics())
+        
+        # here is what the loss from the model looks like:
+        '''
+        - loss
+            - wiki
+                - entity_attention_probs
+                - linking_scores
+            - wordnet
+                - entity_attention_probs
+                - linking_scores
+            - loss
+            - pooled_output
+            - contextual_embeddings
+        '''
+        # all we care about are the linking_scores under wiki,
+        # as those are the scores uses to get the "wiki_el_f1" number
+        # we're trying to reproduce in both Wiki and Wiki+Wordnet settings.
 
     print(model.get_metrics())
 

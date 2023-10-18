@@ -74,6 +74,8 @@ class F1Metric(Metric):
         recall : float
         f1-measure : float
         """
+        # this returns the stored metrics. importantly for us, the f1 score.
+        # it is called by get_metrics() in EntityLinkingBase in kb/entity_linking.py
         precision = float(self._true_positives) / float(self._true_positives + self._false_positives + 1e-13)
         recall = float(self._true_positives) / float(self._true_positives + self._false_negatives + 1e-13)
         f1_measure = 2. * ((precision * recall) / (precision + recall + 1e-13))
@@ -100,6 +102,9 @@ class F1Metric(Metric):
         """
         assert len(predictions) == len(gold_labels)
 
+        # the true_positives, false positives, and false negatives are
+        # all kept track in this object.
+        # the actual f1 score can be got by calling get_metric()
         for pred, gold in zip(predictions, gold_labels):
             s_gold = set(g for g in gold if self.filter_func(g))
             s_pred = set(p for p in pred if self.filter_func(p))

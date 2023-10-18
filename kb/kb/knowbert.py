@@ -596,6 +596,8 @@ class EntityLinkingWithCandidateMentions(EntityLinkingBase):
 
 
     def get_metrics(self, reset: bool = False):
+        # this calls get_metrics() in EntityLinkingBase in kb/entity_linking.py
+        # this is called by get_metrics in SolderedKG in this file.
         metrics = super().get_metrics(reset)
         return metrics
 
@@ -627,6 +629,9 @@ class EntityLinkingWithCandidateMentions(EntityLinkingBase):
 
         return_dict = disambiguator_output
 
+        # finally, this is where the entity linking loss is computed.
+        # _compute_loss() is defined in kb/entity_linking.py,
+        # in class EntityLinkingBase.
         if 'gold_entities' in kwargs:
             loss_dict = self._compute_loss(
                     candidate_entities['ids'],
@@ -699,6 +704,8 @@ class SolderedKG(Model):
         self.kg_to_bert_projection.bias.data.copy_(torch.tensor(b_pseudo_inv))
 
     def get_metrics(self, reset=False):
+        # this calls get_metrics in EntityLinkingWithCandidateMentions in this file.
+        # this is called by KnowBert.get_metrics in this file.
         return self.entity_linker.get_metrics(reset)
 
     def unfreeze(self, mode):
@@ -730,7 +737,9 @@ class SolderedKG(Model):
                 candidate_entity_priors: torch.Tensor,
                 candidate_segment_ids: torch.Tensor,
                 **kwargs):
-
+        
+        # this uses the forward method of this SolderedKG's entity linker.
+        # this is defined in this file, in the class EntityLinkingWithCandidateMentions.
         linker_output = self.entity_linker(
                 contextual_embeddings, tokens_mask,
                 candidate_spans, candidate_entities, candidate_entity_priors,
@@ -871,6 +880,10 @@ class KnowBert(BertPretrainedMetricsLoss):
 
         for key in self.soldered_kgs.keys():
             module = getattr(self, key + "_soldered_kg")
+            # the metrics for each SolderedKG component is called.
+            # note that the key of the component is added to each of its metrics.
+            # this is where "el_f1" from one component becomes "wiki_el_f1" -
+            # the score reported in the paper.
             module_metrics = module.get_metrics(reset)
             for metric_key, val in module_metrics.items():
                 metrics[key + '_' + metric_key] = val
@@ -910,6 +923,13 @@ class KnowBert(BertPretrainedMetricsLoss):
                 soldered_kwargs.update(kwargs)
                 if gold_entities is not None and soldered_kg_key in gold_entities:
                     soldered_kwargs['gold_entities'] = gold_entities[soldered_kg_key]
+                # here, the forward method of one of the model's
+                # soldered_kg compenents is called.
+                # this is defined in this file, in SolderedKG.
+                # this list of SolderedKG components is in soldered_kgs or
+                # layer_to_soldered_kg.
+                # from my experience,
+                # we have "wiki_soldered_kg" and "wordnet_soldered_kg"
                 kg_output = soldered_kg(
                         contextual_embeddings=contextual_embeddings,
                         tokens_mask=mask,
@@ -919,6 +939,7 @@ class KnowBert(BertPretrainedMetricsLoss):
                     loss = loss + kg_output['loss']
 
                 contextual_embeddings = kg_output['contextual_embeddings']
+                # here is where the SolderedKG's output is added to this model's output.
                 output[soldered_kg_key] = {}
                 for key in kg_output.keys():
                     if key != 'loss' and key != 'contextual_embeddings':

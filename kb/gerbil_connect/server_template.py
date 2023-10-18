@@ -455,8 +455,8 @@ def annotate_n3():
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
 if __name__ == '__main__':
+    # loading the actual gold spans/entities, as KnowBert does so when evaluating.
     gold = False
-
     if gold:
         with open('documents_wgold_dev.pkl', 'rb') as file:
             documents_wgold_dev = pickle.load(file)
@@ -473,6 +473,7 @@ if __name__ == '__main__':
 
     annotator_name = "KnowBert"
     
+    # copying "evaluate_wiki_linking.py" - which gets the scores from their paper.
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -492,6 +493,9 @@ if __name__ == '__main__':
     model.cuda()
     model.eval()
 
+    # this line gets the object that holds the "decode" method.
+    # it makes the predictions that lead to the score in the paper,
+    # using the linking scores, candidate spans, and candidate entities.
     wiki_el = getattr(model, "wiki_soldered_kg").entity_linker
         
     if is_wordnet_and_wiki:
@@ -506,6 +510,13 @@ if __name__ == '__main__':
 
     iterator = DataIterator.from_params(Params({"type": "basic", "batch_size": 1}))
     iterator.index_with(vocab)
+
+    # here, evaluate_wiki_linking.py uses the reader to read the aida file,
+    # gold spans/entities included, then evaluates with them.
+    # since we receive a string from GERBIL and not a file to read,
+    # we have to do something different.
+    # also, since we need an output prediction, which doesn't happen in
+    # evaluate_wiki_linking.py.
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
