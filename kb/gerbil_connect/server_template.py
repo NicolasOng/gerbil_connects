@@ -143,9 +143,18 @@ def split_at_periods(tokens, spans, entities):
 
         # Check if token is a period
         if token == ".":
-            split_tokens.append(current_tokens)
-            split_spans.append(current_spans)
-            split_entities.append(current_entities)
+            if len(current_tokens) < 2 and split_tokens:
+                # Merge the current_tokens with the last entry in split_tokens
+                split_tokens[-1].extend(current_tokens)
+                
+                # Also merge spans and entities if any
+                if current_spans:
+                    split_spans[-1].extend(current_spans)
+                    split_entities[-1].extend(current_entities)
+            else:
+                split_tokens.append(current_tokens)
+                split_spans.append(current_spans)
+                split_entities.append(current_entities)
             current_tokens = []
             current_spans = []
             current_entities = []
@@ -157,9 +166,18 @@ def split_at_periods(tokens, spans, entities):
         for j, (start, end) in enumerate(current_spans):
             current_spans[j] = [start - token_start_idx, end - token_start_idx]
             
-        split_tokens.append(current_tokens)
-        split_spans.append(current_spans)
-        split_entities.append(current_entities)
+        if len(current_tokens) < 2 and split_tokens:
+            # Merge the current_tokens with the last entry in split_tokens
+            split_tokens[-1].extend(current_tokens)
+            
+            # Also merge spans and entities if any
+            if current_spans:
+                split_spans[-1].extend(current_spans)
+                split_entities[-1].extend(current_entities)
+        else:
+            split_tokens.append(current_tokens)
+            split_spans.append(current_spans)
+            split_entities.append(current_entities)
 
     return split_tokens, split_spans, split_entities
 

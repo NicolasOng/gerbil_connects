@@ -130,9 +130,18 @@ def split_at_periods(tokens, spans, entities):
 
         # Check if token is a period
         if token == ".":
-            split_tokens.append(current_tokens)
-            split_spans.append(current_spans)
-            split_entities.append(current_entities)
+            if len(current_tokens) < 2 and split_tokens:
+                # Merge the current_tokens with the last entry in split_tokens
+                split_tokens[-1].extend(current_tokens)
+                
+                # Also merge spans and entities if any
+                if current_spans:
+                    split_spans[-1].extend(current_spans)
+                    split_entities[-1].extend(current_entities)
+            else:
+                split_tokens.append(current_tokens)
+                split_spans.append(current_spans)
+                split_entities.append(current_entities)
             current_tokens = []
             current_spans = []
             current_entities = []
@@ -144,9 +153,18 @@ def split_at_periods(tokens, spans, entities):
         for j, (start, end) in enumerate(current_spans):
             current_spans[j] = [start - token_start_idx, end - token_start_idx]
             
-        split_tokens.append(current_tokens)
-        split_spans.append(current_spans)
-        split_entities.append(current_entities)
+        if len(current_tokens) < 2 and split_tokens:
+            # Merge the current_tokens with the last entry in split_tokens
+            split_tokens[-1].extend(current_tokens)
+            
+            # Also merge spans and entities if any
+            if current_spans:
+                split_spans[-1].extend(current_spans)
+                split_entities[-1].extend(current_entities)
+        else:
+            split_tokens.append(current_tokens)
+            split_spans.append(current_spans)
+            split_entities.append(current_entities)
 
     return split_tokens, split_spans, split_entities
 
@@ -209,6 +227,9 @@ def convert_final_predictions(predictions, pred_sentence, new_sentence):
         new_preds.append((new_start, new_end, pred_name))
     return new_preds
 
+with open('gold_documents_new_02.pkl', 'rb') as file:
+    gold_documents = pickle.load(file)
+
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -249,129 +270,134 @@ iterator.index_with(vocab)
 
 print("Got candidate generator and reader.")
 
-#elb = EntityLinkingBase(vocab)
+for i, document in enumerate(gold_documents):
+    #if (i != 56):
+    #    continue
+    print(i)
+    raw_text = document["raw_text"]
+    gold = True
 
-raw_text = "CRICKET - LEICESTERSHIRE TAKE OVER AT TOP AFTER INNINGS VICTORY. LONDON 1996-08-30 West Indian all-rounder Phil Simmons took four for 38 on Friday as Leicestershire beat Somerset by an innings and 39 runs in two days to take over at the head of the county championship. Their stay on top, though, may be short-lived as title rivals Essex, Derbyshire and Surrey all closed in on victory while Kent made up for lost time in their rain-affected match against Nottinghamshire. After bowling Somerset out for 83 on the opening morning at Grace Road, Leicestershire extended their first innings by 94 runs before being bowled out for 296 with England discard Andy Caddick taking three for 83. Trailing by 213, Somerset got a solid start to their second innings before Simmons stepped in to bundle them out for 174. Essex, however, look certain to regain their top spot after Nasser Hussain and Peter Such gave them a firm grip on their match against Yorkshire at Headingley. Hussain, considered surplus to England's one-day requirements, struck 158, his first championship century of the season, as Essex reached 372 and took a first innings lead of 82. By the close Yorkshire had turned that into a 37-run advantage but off-spinner Such had scuttled their hopes, taking four for 24 in 48 balls and leaving them hanging on 119 for five and praying for rain. At the Oval, Surrey captain Chris Lewis, another man dumped by England, continued to silence his critics as he followed his four for 45 on Thursday with 80 not out on Friday in the match against Warwickshire. He was well backed by England hopeful Mark Butcher who made 70 as Surrey closed on 429 for seven, a lead of 234. Derbyshire kept up the hunt for their first championship title since 1936 by reducing Worcestershire to 133 for five in their second innings, still 100 runs away from avoiding an innings defeat. Australian Tom Moody took six for 82 but Chris Adams, 123, and Tim O'Gorman, 109, took Derbyshire to 471 and a first innings lead of 233. After the frustration of seeing the opening day of their match badly affected by the weather, Kent stepped up a gear to dismiss Nottinghamshire for 214. They were held up by a gritty 84 from Paul Johnson but ex-England fast bowler Martin McCague took four for 55. By stumps Kent had reached 108 for three."
-gold = False
+    instances = []
+    processeds = []
 
-instances = []
-processeds = []
-
-if gold:
-    # get the gold aida tokenization, spans, and entities
-    aida_document = aida_get_gold_document(raw_text)
-    # break it down by sentences - break at the periods
-    # span indices need to be updated.
-    tokenized_sentences, sentence_gold_spans, sentence_gold_entities = split_at_periods(aida_document["words"], aida_document["gold_spans"], aida_document["gold_entities"])
-    for i, tokenized_sentence in enumerate(tokenized_sentences):
-        gold_spans = sentence_gold_spans[i]
-        gold_entities = sentence_gold_entities[i]
-        # creates candidate spans + entities, but adds the gold spans to the candidate list.
-        processed = reader.mention_generator.get_mentions_with_gold(' '.join(tokenized_sentence), gold_spans, gold_entities, whitespace_tokenize=True, keep_gold_only=False)
-        # converts to Allennlp Instance, adds extra span/entity candidates for wordnet
-        instance = reader.text_to_instance(doc_id="", **processed)
-        processeds.append(processed)
-        instances.append(instance)
-else:
-    # break the given text into sentences
-    sentences = sentence_tokenize(raw_text)
-    # tokenize the sentences
-    tokenized_sentences = [punkt_tokenize(sentence) for sentence in sentences]
-    for tokenized_sentence in tokenized_sentences:
-        # creates candidate token spans + entities.
-        processed = reader.mention_generator.get_mentions_raw_text(' '.join(tokenized_sentence), whitespace_tokenize=True)
-        # get_mentions_raw_text returns a very slightly different dict from get_mentions_with_gold
-        processed["candidate_entity_prior"] = processed["candidate_entity_priors"]
-        del processed["candidate_entity_priors"]
-        # converts to Allennlp Instance, adds extra span/entity candidates for wordnet
-        instance = reader.text_to_instance(doc_id="", **processed)
-        processeds.append(processed)
-        instances.append(instance)
-
-total_final_output = []
-text_predicted_for = ""
-for batch_no, batch in enumerate(iterator(instances, shuffle=False, num_epochs=1)):
-    # b is the Allennlp Instance after the iterator turns it into a model-friendly input.
-    # Converts the word-level tokens to BERT tokens, adjusts the span indices, converts entity names to ids, etc.
-    b = move_to_device(batch, 0)
-
-    b['candidates'] = {'wiki': {
-            'candidate_entities': b.pop('candidate_entities'),
-            'candidate_entity_priors': b.pop('candidate_entity_prior'),
-            'candidate_segment_ids': b.pop('candidate_segment_ids'),
-            'candidate_spans': b.pop('candidate_spans')}}
-
-    if is_wordnet_and_wiki:
-        extra_candidates = b.pop('extra_candidates')
-        seq_len = b['tokens']['tokens'].shape[1]
-        bbb = []
-        for e in extra_candidates:
-            for k in e.keys():
-                e[k]['candidate_segment_ids'] = [0] * len(e[k]['candidate_spans'])
-            ee = {'tokens': ['[CLS]'] * seq_len, 'segment_ids': [0] * seq_len,
-                    'candidates': e}
-            ee_fields = candidate_generator.convert_tokens_candidates_to_fields(ee)
-            bbb.append(Instance(ee_fields))
-        eb = Batch(bbb)
-        eb.index_instances(vocab)
-        padding_lengths = eb.get_padding_lengths()
-        tensor_dict = eb.as_tensor_dict(padding_lengths)
-        b['candidates'].update(tensor_dict['candidates'])
-        bb = move_to_device(b, 0)
+    if gold:
+        # get the gold aida tokenization, spans, and entities
+        aida_document = aida_get_gold_document(raw_text)
+        # break it down by sentences - break at the periods
+        # span indices need to be updated.
+        tokenized_sentences, sentence_gold_spans, sentence_gold_entities = split_at_periods(aida_document["words"], aida_document["gold_spans"], aida_document["gold_entities"])
+        print(tokenized_sentences)
+        print(sentence_gold_spans)
+        print(sentence_gold_entities)
+        for i, tokenized_sentence in enumerate(tokenized_sentences):
+            gold_spans = sentence_gold_spans[i]
+            gold_entities = sentence_gold_entities[i]
+            # creates candidate spans + entities, but adds the gold spans to the candidate list.
+            processed = reader.mention_generator.get_mentions_with_gold(' '.join(tokenized_sentence), gold_spans, gold_entities, whitespace_tokenize=True, keep_gold_only=False)
+            # converts to Allennlp Instance, adds extra span/entity candidates for wordnet
+            instance = reader.text_to_instance(doc_id="", **processed)
+            processeds.append(processed)
+            instances.append(instance)
     else:
-        bb = b
+        # break the given text into sentences
+        sentences = sentence_tokenize(raw_text)
+        # tokenize the sentences
+        tokenized_sentences = [punkt_tokenize(sentence) for sentence in sentences]
+        for tokenized_sentence in tokenized_sentences:
+            # creates candidate token spans + entities.
+            processed = reader.mention_generator.get_mentions_raw_text(' '.join(tokenized_sentence), whitespace_tokenize=True)
+            # get_mentions_raw_text returns a very slightly different dict from get_mentions_with_gold
+            processed["candidate_entity_prior"] = processed["candidate_entity_priors"]
+            del processed["candidate_entity_priors"]
+            # converts to Allennlp Instance, adds extra span/entity candidates for wordnet
+            instance = reader.text_to_instance(doc_id="", **processed)
+            processeds.append(processed)
+            instances.append(instance)
 
-    # bb is b after some processing (see above).
+    total_final_output = []
+    text_predicted_for = ""
+    for batch_no, batch in enumerate(iterator(instances, shuffle=False, num_epochs=1)):
+        # b is the Allennlp Instance after the iterator turns it into a model-friendly input.
+        # Converts the word-level tokens to BERT tokens, adjusts the span indices, converts entity names to ids, etc.
+        b = move_to_device(batch, 0)
 
-    # output has linking scores for every entity.
-    raw_output = model(**bb)
+        b['candidates'] = {'wiki': {
+                'candidate_entities': b.pop('candidate_entities'),
+                'candidate_entity_priors': b.pop('candidate_entity_prior'),
+                'candidate_segment_ids': b.pop('candidate_segment_ids'),
+                'candidate_spans': b.pop('candidate_spans')}}
 
-    # create some vars for convinience:
-    linking_scores = raw_output["wiki"]["linking_scores"]
+        if is_wordnet_and_wiki:
+            extra_candidates = b.pop('extra_candidates')
+            seq_len = b['tokens']['tokens'].shape[1]
+            bbb = []
+            for e in extra_candidates:
+                for k in e.keys():
+                    e[k]['candidate_segment_ids'] = [0] * len(e[k]['candidate_spans'])
+                ee = {'tokens': ['[CLS]'] * seq_len, 'segment_ids': [0] * seq_len,
+                        'candidates': e}
+                ee_fields = candidate_generator.convert_tokens_candidates_to_fields(ee)
+                bbb.append(Instance(ee_fields))
+            eb = Batch(bbb)
+            eb.index_instances(vocab)
+            padding_lengths = eb.get_padding_lengths()
+            tensor_dict = eb.as_tensor_dict(padding_lengths)
+            b['candidates'].update(tensor_dict['candidates'])
+            bb = move_to_device(b, 0)
+        else:
+            bb = b
 
-    entity_ids = bb["candidates"]["wiki"]["candidate_entities"]["ids"]
-    entity_names = processeds[batch_no]["candidate_entities"]
+        # bb is b after some processing (see above).
 
-    bert_token_spans = bb["candidates"]["wiki"]["candidate_spans"]
-    word_token_spans = processeds[batch_no]["candidate_spans"]
+        # output has linking scores for every entity.
+        raw_output = model(**bb)
 
-    tokenized_sentence = processeds[batch_no]["tokenized_text"]
-    sentence = " ".join(tokenized_sentence)
+        # create some vars for convinience:
+        linking_scores = raw_output["wiki"]["linking_scores"]
 
-    # input: list of candidate spans, list of candidate entities for each span, "linking scores" for each entity
-    # decode returns a list of [batch, (start, end), entity id].
-    # the start/end refer to the BERT tokens.
-    decoded_output = wiki_el._decode(linking_scores, bert_token_spans, entity_ids)
+        entity_ids = bb["candidates"]["wiki"]["candidate_entities"]["ids"]
+        entity_names = processeds[batch_no]["candidate_entities"]
 
-    final_output = []
-    # for each predicted span/entity,
-    for _, token_span, entity_id in decoded_output:
-        # convert the entity id to the entity name
-        entity_name = map_entity_id_to_name(entity_id, entity_ids, entity_names)
-        # convert the BERT token span to the word token span
-        word_span = get_word_span(token_span, bert_token_spans, word_token_spans)
-        # convert the word token span to a character span
-        character_span = token_to_character_index(tokenized_sentence, sentence, word_span[0], word_span[1])
-        # convert to sentence-level character span to a document-level character span
-        start_i = character_span[0] + len(text_predicted_for)
-        end_i = character_span[1] + len(text_predicted_for) + 1
-        # append the mention.
-        mention = (start_i, end_i, entity_name)
-        final_output.append(mention)
-    
-    # update the document predicted for
-    text_predicted_for += sentence
+        bert_token_spans = bb["candidates"]["wiki"]["candidate_spans"]
+        word_token_spans = processeds[batch_no]["candidate_spans"]
 
-    total_final_output += final_output
+        tokenized_sentence = processeds[batch_no]["tokenized_text"]
+        sentence = " ".join(tokenized_sentence)
 
-# the text that was predicted for might be different from the text given.
-total_final_output = convert_final_predictions(total_final_output, text_predicted_for, raw_text)
+        # input: list of candidate spans, list of candidate entities for each span, "linking scores" for each entity
+        # decode returns a list of [batch, (start, end), entity id].
+        # the start/end refer to the BERT tokens.
+        decoded_output = wiki_el._decode(linking_scores, bert_token_spans, entity_ids)
 
-for start, end, entity in total_final_output:
-    print(start, end, entity)
-    print(raw_text[start:end])
-    print(raw_text[start-10:start] + "*" + raw_text[start:end] + "*" + raw_text[end:end+10])
-    print("")
+        final_output = []
+        # for each predicted span/entity,
+        for _, token_span, entity_id in decoded_output:
+            # convert the entity id to the entity name
+            entity_name = map_entity_id_to_name(entity_id, entity_ids, entity_names)
+            # convert the BERT token span to the word token span
+            word_span = get_word_span(token_span, bert_token_spans, word_token_spans)
+            # convert the word token span to a character span
+            character_span = token_to_character_index(tokenized_sentence, sentence, word_span[0], word_span[1])
+            # convert to sentence-level character span to a document-level character span
+            start_i = character_span[0] + len(text_predicted_for)
+            end_i = character_span[1] + len(text_predicted_for) + 1
+            # append the mention.
+            mention = (start_i, end_i, entity_name)
+            final_output.append(mention)
+        
+        # update the document predicted for
+        text_predicted_for += sentence
+
+        total_final_output += final_output
+
+    # the text that was predicted for might be different from the text given.
+    total_final_output = convert_final_predictions(total_final_output, text_predicted_for, raw_text)
+
+    for start, end, entity in total_final_output:
+        print(start, end, entity)
+        print(raw_text[start:end])
+        print(raw_text[start-10:start] + "*" + raw_text[start:end] + "*" + raw_text[end:end+10])
+        print("")
 
 '''
 with open('converted_output.pkl', 'wb') as file:
