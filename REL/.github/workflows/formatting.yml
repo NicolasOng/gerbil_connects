@@ -1,0 +1,52 @@
+name: formatting
+
+on:
+    push:
+        branches:
+            - release/v**
+            - main
+
+jobs:
+    formatting:
+        name: Formatting
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              name: Checkout repository
+
+            - name: Configure Git
+              run: |
+                  git config --local user.email "action@github.com"
+                  git config --local user.name "Github Action"
+                  git config --local core.autocrlf true
+
+            - name: Set up Python 3.7
+              uses: actions/setup-python@v4
+              with:
+                  python-version: 3.7
+
+            - uses: actions/cache@v3
+              with:
+                path: ${{ env.pythonLocation }}
+                key: ${{ env.pythonLocation }}-${{ hashFiles('setup.cfg') }}
+
+            - name: Install REL and dependencies
+              run: |
+                  pip install -U pip
+                  pip install -e .[develop]
+
+            - name: Code formatting
+              run: |
+                  isort .
+                  black .
+
+            - name: Commit formatting changes
+              run: |
+                  git add -u
+                  git commit -m "[skip ci] Code formatting" -a || true
+
+            - name: Push changes
+              uses: ad-m/github-push-action@master
+              with:
+                  branch: ${{ github.ref }}
+                  github_token: ${{ secrets.GITHUB_TOKEN }}

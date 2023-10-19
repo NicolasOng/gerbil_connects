@@ -1,0 +1,91 @@
+site_name: "REL: Radboud Entity Linker"
+
+nav:
+  - Home: index.md
+  - API: server_api.md
+  - Tutorials:
+    - tutorials/how_to_get_started.md
+    - tutorials/e2e_entity_linking.md
+    - tutorials/evaluate_gerbil.md
+    - tutorials/deploy_REL_new_wiki.md
+    - tutorials/reproducing_our_results.md
+    - tutorials/server.md
+    - tutorials/custom_models.md
+    - tutorials/conversations.md
+  - Python API reference:
+    - api/entity_disambiguation.md
+    - api/generate_train_test.md
+    - api/mention_detection.md
+    - api/mulrel_ranker.md
+    - api/server.md
+    - api/training_datasets.md
+    - api/utils.md
+    - api/vocabulary.md
+    - api/wikipedia.md
+    - api/wikipedia_yago_freq.md
+  - Contributing: CONTRIBUTING.md
+  - Code of Conduct: CODE_OF_CONDUCT.md
+  - 🔗 Source code: https://github.com/informagi/REL
+  - 🔗 Issues: https://github.com/informagi/REL/issues
+
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      primary: blue
+      accent: red
+      scheme: default
+      toggle:
+        name: Switch to dark mode
+        icon: material/lightbulb
+    - media: "(prefers-color-scheme: dark)"
+      primary: blue
+      accent: red
+      scheme: slate
+      toggle:
+        name: Switch to light mode
+        icon: material/lightbulb-outline
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - markdown_include.include:
+      base_path: docs
+  - pymdownx.extra
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+- search
+- mkdocstrings:
+    # https://mkdocstrings.github.io/usage/
+    handlers:
+      python:
+        import:
+        - https://docs.python.org/3/objects.inv
+        - https://numpy.org/doc/stable/objects.inv
+        - https://docs.scipy.org/doc/scipy/objects.inv
+        - https://pandas.pydata.org/docs/objects.inv
+        options:
+          docstring_style: sphinx
+          docstring_options:
+            ignore_init_summary: yes
+          show_submodules: no
+          show_source: true
+          docstring_section_style: list
+          members_order: alphabetical
+          show_category_heading: no
+          merge_init_into_class: yes
+
+watch:
+  - REL/
+  - docs/
+  - README.md
