@@ -5,3 +5,8 @@ log/
 build
 kb.egg-info
 dist
+
+test/
+converted_output.pkl
+gold_documents_new_02.pkl
+annotate_KnowBert_result.json
