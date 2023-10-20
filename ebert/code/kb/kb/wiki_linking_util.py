@@ -170,6 +170,8 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         if self.random_candidates:
             self.p_e_m_keys_for_sampling = list(self.p_e_m.keys())
 
+        self.no_candidate_sets = False
+
     def get_mentions_raw_text(self, text: str, whitespace_tokenize=False):
         """
         returns:
@@ -281,6 +283,9 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         a title format version of the same string. Returns a list of
         (entity_id, entity_candidate, p(entity_candidate | mention string)) pairs.
         """
+        if self.no_candidate_sets:
+            return []
+        
         if self.random_candidates:
             random_key = random.choice(self.p_e_m_keys_for_sampling)
             return self.p_e_m[random_key]
