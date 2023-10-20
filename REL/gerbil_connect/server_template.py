@@ -21,7 +21,7 @@ from REL.ner import Cmns, load_flair_ner
 from threading import Thread
 from queue import Queue
 
-wiki_version = "wiki_2019"
+wiki_version = "wiki_2014"
 base_url = "/mnt/d/Datasets/Radboud/"
 annotation_queue = Queue()
 
@@ -132,11 +132,17 @@ def REL_thread():
     tagger_ner = load_flair_ner("ner-fast")
     #tagger_ngram = Cmns(base_url, wiki_version, n=5)
 
+    if wiki_version == "wiki_2014":
+        model_path = "ed-wiki-2014"
+    elif wiki_version == "wiki_2019":
+        model_path = "ed-wiki-2019"
     config = {
         "mode": "eval",
-        "model_path": "ed-wiki-2019",
+        "model_path": model_path,
     }
     Radboud_model = EntityDisambiguation(base_url, wiki_version, config)
+
+    print("Model ready.")
 
     while True:
         raw_text, output_queue = annotation_queue.get()
