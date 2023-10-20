@@ -76,6 +76,11 @@ class LinkingReader(DatasetReader):
         self.should_remap_span_indices = should_remap_span_indices
 
         self.extra_candidate_generators = extra_candidate_generators
+    
+    def set_no_candidate_sets(self):
+        self.mention_generator.no_candidate_sets = True
+        for _, generator in self.extra_candidate_generators.items():
+            generator.no_candidate_sets = True
 
     def _read(self, file_path: str):
 
@@ -153,7 +158,16 @@ class LinkingReader(DatasetReader):
         assert doc_id is not None
 
         token_field = TextField([Token(x) for x in tokenized_text], self.token_indexers)
-        span_fields = ListField([SpanField(*span, token_field) for span in candidate_spans])
+
+        # span fields cannot be instantiated with an empty list, like when there are no candidates.
+        # create a dummy list of span fields, and grab a empty field to use.
+        # https://github.com/allenai/allennlp/issues/1391
+        # technically I don't need this anymore since even with no spans, the span list shouldn't be empty.
+        if candidate_spans:
+            span_fields = ListField([SpanField(*span, token_field) for span in candidate_spans])
+        else:
+            dummy = SpanField(0, 0, token_field)
+            span_fields = ListField([dummy.empty_field()])
 
         candidate_entities = TextField(
                 [Token(" ".join(candidate_list)) for candidate_list in candidate_entities],
@@ -185,6 +199,9 @@ class LinkingReader(DatasetReader):
 
         fields["doc_id"] = MetadataField(doc_id)
 
+        # in Wiki, there is no extra candidate generator.
+        # in W+W, there is one extra candidate generator.
+        # wordnet_mention_generator defined in kb/wordnet.py
         if self.extra_candidate_generators:
             tokens = " ".join(tokenized_text)
             extra_candidates = {

@@ -247,6 +247,8 @@ class WordNetCandidateMentionGenerator(MentionGenerator):
         self._random_candidates = random_candidates
         if self._random_candidates:
             self._unique_synsets = list(set(self._lemma_to_synset.values()))
+        
+        self.no_candidate_sets = False
 
     def get_mentions_with_gold_spans(
             self, gold_annotations
@@ -460,7 +462,7 @@ class WordNetCandidateMentionGenerator(MentionGenerator):
                'candidate_entities': candidate_entities,
                'candidate_entity_priors': candidate_entity_priors}
 
-        if not allow_empty_candidates and len(candidate_spans) == 0:
+        if (not allow_empty_candidates and len(candidate_spans) == 0) or (self.no_candidate_sets):
             # no candidates found, substitute the padding entity id
             ret.update(get_empty_candidates())
 

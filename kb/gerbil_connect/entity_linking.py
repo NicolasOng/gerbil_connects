@@ -235,6 +235,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-a', '--model_archive', type=str)
 parser.add_argument('--wiki_and_wordnet', action='store_true')
+parser.add_argument('--no-candidate-sets', action='store_true')
 
 args = parser.parse_args()
 
@@ -265,17 +266,21 @@ if is_wordnet_and_wiki:
 
 reader = DatasetReader.from_params(Params(reader_params))
 
+if (args.no_candidate_sets):
+        print("no candidate sets.")
+        reader.set_no_candidate_sets()
+
 iterator = DataIterator.from_params(Params({"type": "basic", "batch_size": 1}))
 iterator.index_with(vocab)
 
 print("Got candidate generator and reader.")
 
 for i, document in enumerate(gold_documents):
-    #if (i != 56):
-    #    continue
+    if i != 0:
+        continue
     print(i)
     raw_text = document["raw_text"]
-    gold = True
+    gold = False
 
     instances = []
     processeds = []
@@ -286,9 +291,6 @@ for i, document in enumerate(gold_documents):
         # break it down by sentences - break at the periods
         # span indices need to be updated.
         tokenized_sentences, sentence_gold_spans, sentence_gold_entities = split_at_periods(aida_document["words"], aida_document["gold_spans"], aida_document["gold_entities"])
-        print(tokenized_sentences)
-        print(sentence_gold_spans)
-        print(sentence_gold_entities)
         for i, tokenized_sentence in enumerate(tokenized_sentences):
             gold_spans = sentence_gold_spans[i]
             gold_entities = sentence_gold_entities[i]
@@ -392,6 +394,8 @@ for i, document in enumerate(gold_documents):
 
     # the text that was predicted for might be different from the text given.
     total_final_output = convert_final_predictions(total_final_output, text_predicted_for, raw_text)
+
+    print("number of mentions detected: ", len(total_final_output))
 
     for start, end, entity in total_final_output:
         print(start, end, entity)

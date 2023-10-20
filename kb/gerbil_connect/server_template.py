@@ -476,6 +476,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--model_archive', type=str)
     parser.add_argument('--wiki_and_wordnet', action='store_true')
+    parser.add_argument('--no-candidate-sets', action='store_true')
 
     args = parser.parse_args()
 
@@ -504,6 +505,10 @@ if __name__ == '__main__':
         candidate_generator = TokenizerAndCandidateGenerator.from_params(cg_params_ww)
     
     reader = DatasetReader.from_params(Params(reader_params))
+
+    if (args.no_candidate_sets):
+        print("no candidate sets.")
+        reader.set_no_candidate_sets()
 
     iterator = DataIterator.from_params(Params({"type": "basic", "batch_size": 1}))
     iterator.index_with(vocab)

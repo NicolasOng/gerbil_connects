@@ -168,6 +168,8 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         self.random_candidates = random_candidates
         if self.random_candidates:
             self.p_e_m_keys_for_sampling = list(self.p_e_m.keys())
+        
+        self.no_candidate_sets = False
 
     def get_mentions_raw_text(self, text: str, whitespace_tokenize=False):
         """
@@ -280,7 +282,7 @@ class WikiCandidateMentionGenerator(MentionGenerator):
 
         # return those lists.
         # note that knowbert uses the gold_entities to evaluate itself.
-        return {
+        ret = {
             "tokenized_text": tokens,
             "candidate_spans": spans,
             "candidate_entities": entities,
@@ -288,7 +290,19 @@ class WikiCandidateMentionGenerator(MentionGenerator):
             "candidate_entity_prior": priors,
             "gold_entities": gold_entities
         }
+        
+        # when no candidate entities/mentions are found, use the get_empty_candidates function
+        # need to change the candidate_entity_prior part of the dict first, then change it back
+        ret["candidate_entity_priors"] = ret["candidate_entity_prior"]
+        del ret["candidate_entity_prior"]
 
+        if len(spans) == 0:
+            ret.update(get_empty_candidates())
+        
+        ret["candidate_entity_prior"] = ret["candidate_entity_priors"]
+        del ret["candidate_entity_priors"]
+        
+        return ret
 
     def process(self, span: Union[List[str], str], lower=False) -> List[Tuple[str, str, float]]:
         """
@@ -296,6 +310,9 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         a title format version of the same string. Returns a list of
         (entity_id, entity_candidate, p(entity_candidate | mention string)) pairs.
         """
+        if self.no_candidate_sets:
+            return []
+        
         if self.random_candidates:
             random_key = random.choice(self.p_e_m_keys_for_sampling)
             return self.p_e_m[random_key]
