@@ -288,7 +288,7 @@ if __name__ == '__main__':
     genre_mode = "genre3"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--use-candidate-sets", action="store_true")
+    parser.add_argument("--no-candidate-sets", action="store_true")
     args = parser.parse_args()
 
     if (genre_mode == "genre1"):
@@ -301,7 +301,7 @@ if __name__ == '__main__':
             mention_trie = pickle.load(f)
     elif genre_mode == "genre3":
         print("load model...")
-        if args.use_candidate_sets:
+        if not args.no_candidate_sets:
             print("...with candidate sets...")
             model = Model(yago=True,
                         mention_trie="data/mention_trie.pkl",

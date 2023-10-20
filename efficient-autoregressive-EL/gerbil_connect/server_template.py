@@ -100,7 +100,7 @@ def ea_el_model(raw_text):
     # get the model predictions
     # the model can handle all the documents GERBIL sends,
     # so I won't bother with splitting into sentences.
-    if args.use_candidate_sets and dataset_id is not None:
+    if (not args.no_candidate_sets) and (dataset_id is not None):
         model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
     else:
         model_preds = model.sample([dataset_input])
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     annotator_name = "ea-el"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--use-candidate-sets", action="store_true")
+    parser.add_argument("--no-candidate-sets", action="store_true")
     args = parser.parse_args()
 
     # get the candidate sets
