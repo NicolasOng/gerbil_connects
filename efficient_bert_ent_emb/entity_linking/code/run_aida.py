@@ -302,7 +302,7 @@ class EntityLinkingAsLM:
             # candidate entities (a list for each candidate span), 
             # and candidate priors (one for each candidate entity)
             # if there are no candidate spans w/ candidate entities found, a placeholder (-1, -1) span is returned, with a placeholder candidate entity '@@PADDING@@', and prior (1).
-            # this breaks the code.
+            # this breaks the code (see below)
             mentions = self.candidate_generator.get_mentions_raw_text(" ".join(sentence), whitespace_tokenize=True)
             span2candidates = {}
 
@@ -346,7 +346,8 @@ class EntityLinkingAsLM:
                         self.ent2idx[entity] = len(self.ent2idx)
                 
                 # here is where the [MASK] token is added (with "\" and "*", see the patterns)
-                # this breaks with the placeholder candidate.
+                # this breaks with the placeholder candidate, as the (-1, -1) span doubles the length of the sentence with this
+                # which is not the intended behaviour.
                 sentence_with_pattern = sentence[:start] + self.left_pattern + sentence[start:end+1] + self.right_pattern + sentence[end+1:]
 
                 present_entities = [token for token in sentence_with_pattern if token.startswith(self.ent_prefix)]

@@ -1,7 +1,9 @@
 data/AIDA/aida_dev.txt
 data/AIDA/aida_test.txt
 data/AIDA/aida_train.txt
+data/LAMA/
 LAMA/
 mappers/wikipedia2vec-base-cased.bert-base-cased.linear.npy
 model/
 resources/wikipedia2vec/wikipedia2vec-base-cased
+__pycache__/
