@@ -137,6 +137,7 @@ class WikiCandidateMentionGenerator(MentionGenerator):
                  lowercase_candidates: bool = True,
                  random_candidates: bool = False,
                  pickle_cache_file: str = None,
+                 max_candidates: int = 1000,
                  ):
 
         self.tokenizer = spacy.load('en_core_web_sm', disable=['tagger', 'parser', 'ner', 'textcat'])
