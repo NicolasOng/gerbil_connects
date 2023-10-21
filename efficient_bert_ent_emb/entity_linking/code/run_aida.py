@@ -199,7 +199,9 @@ class EntityLinkingAsLM:
         
         if self.do_use_priors:
             self.null_bias = Variable(torch.zeros((1,)).to(dtype = torch.float, device = self.device), requires_grad = True)
-         
+    
+    def set_no_candidate_sets(self):
+        self.candidate_generator.no_candidate_sets = True
 
     def score_f1(self, true, pred):
         assert len(pred) == len(true)

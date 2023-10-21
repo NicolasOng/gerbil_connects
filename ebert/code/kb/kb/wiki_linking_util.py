@@ -221,8 +221,11 @@ class WikiCandidateMentionGenerator(MentionGenerator):
             "candidate_entity_priors": priors 
         }
 
+        # removing the placeholder output for empty candidates
+        # as it breaks the code down the line.
         if len(spans) == 0:
-            ret.update(get_empty_candidates())
+            #ret.update(get_empty_candidates())
+            pass
 
         return ret
 

@@ -169,6 +169,8 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         self.random_candidates = random_candidates
         if self.random_candidates:
             self.p_e_m_keys_for_sampling = list(self.p_e_m.keys())
+        
+        self.no_candidate_sets = False
 
     def get_mentions_raw_text(self, text: str, whitespace_tokenize=False):
         """
@@ -188,11 +190,13 @@ class WikiCandidateMentionGenerator(MentionGenerator):
             tokens = self.tokenizer(text)
 
         tokens = [t.text for t in tokens]
+        # generates the mentions here
         all_spans = enumerate_spans(tokens, max_span_width=5, filter_function=span_filter_func)
 
         spans_to_candidates = {}
 
         for span in all_spans:
+            # generates the candidates here
             candidate_entities = self.process(tokens[span[0]:span[1] + 1])
             if candidate_entities:
                 # Only keep spans which we have candidates for.
@@ -219,8 +223,11 @@ class WikiCandidateMentionGenerator(MentionGenerator):
             "candidate_entity_priors": priors 
         }
 
+        # not replacing an empty list with a placeholder candidate,
+        # as it breaks the code.
         if len(spans) == 0:
-            ret.update(get_empty_candidates())
+            #ret.update(get_empty_candidates())
+            pass
 
         return ret
 
@@ -281,6 +288,10 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         a title format version of the same string. Returns a list of
         (entity_id, entity_candidate, p(entity_candidate | mention string)) pairs.
         """
+
+        if self.no_candidate_sets:
+            return []
+    
         if self.random_candidates:
             random_key = random.choice(self.p_e_m_keys_for_sampling)
             return self.p_e_m[random_key]

@@ -94,6 +94,8 @@ def parse_args():
     parser.add_argument("--gradient_accumulation_steps", type = int, default = 16)
     parser.add_argument("--granularity", type = str, default = "document", choices = ("document", "paragraph"))
 
+    parser.add_argument("--no-candidate-sets", action = "store_true")
+
     return parser.parse_args()
 
 def load_model(args):
@@ -103,6 +105,9 @@ def load_model(args):
     print(model_args, flush = True)
     model = EntityLinkingAsLM(**model_args, device = args.device)
     model.load(args.model_dir)
+
+    if args.no_candidate_sets:
+        model.set_no_candidate_sets()
 
     return model
 
