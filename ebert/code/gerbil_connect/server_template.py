@@ -254,15 +254,15 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+args = parse_args()
+print(os.uname(), flush = True)
+print("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", None), flush = True)
+print(args, flush = True)
+
+model = load_model(args)
+
 if __name__ == '__main__':
-    annotator_name = "E-BERT"
-
-    args = parse_args()
-    print(os.uname(), flush = True)
-    print("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", None), flush = True)
-    print(args, flush = True)
-
-    model = load_model(args)
+    annotator_name = "ebert"
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)

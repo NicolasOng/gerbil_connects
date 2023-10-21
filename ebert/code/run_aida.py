@@ -634,7 +634,9 @@ class EntityLinkingAsLM:
         assert sorted(list(idx2ent.keys())) == list(range(len(idx2ent)))
     
         entity_embedding = torch.zeros((len(idx2ent), self.null_vector.shape[0]))
-        entity_embedding[1:] = torch.tensor(self.ebert_emb[[self.ent_prefix + idx2ent[idx] for idx in range(1, len(idx2ent))]])
+        if len(idx2ent) > 1:
+            # handles the case where there are no candidates in idx2ent besides {0: None}
+            entity_embedding[1:] = torch.tensor(self.ebert_emb[[self.ent_prefix + idx2ent[idx] for idx in range(1, len(idx2ent))]])
         entity_embedding = entity_embedding.to(dtype = self.null_vector.dtype)
 
         for step, i in enumerate(trange(0, len(samples), batch_size, desc = f"Iterations ({mode})", disable = not verbose)):
