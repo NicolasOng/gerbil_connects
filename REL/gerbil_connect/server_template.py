@@ -21,6 +21,8 @@ from REL.ner import Cmns, load_flair_ner
 from threading import Thread
 from queue import Queue
 
+import argparse
+
 wiki_version = "wiki_2014"
 base_url = "/mnt/d/Datasets/Radboud/"
 annotation_queue = Queue()
@@ -158,11 +160,16 @@ def REL_thread():
         # mention detection using flair
         mentions, n_mentions = mention_detection.find_mentions(input_text, tagger_ner)
 
+        if args.no_candidate_sets:
+            # empties the candidate sets
+            for mention in mentions[doc_name]:
+                mention["candidates"] = []
+
         # entity disambiguation
         predictions, timing = Radboud_model.predict(mentions)
         
         result = process_results(mentions, predictions, input_text)
-        print(result)
+
         # process results
         '''
         Example result format:
@@ -172,6 +179,11 @@ def REL_thread():
         output = [(mention[0], mention[0] + mention[1], mention[3]) for mention in mention_list]
         output_queue.put(output)
 
+# start
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--no-candidate-sets", action="store_true")
+args = parser.parse_args()
 
 if __name__ == '__main__':
     annotator_name = "REL"

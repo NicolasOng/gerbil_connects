@@ -1,50 +1,7 @@
-from REL.mention_detection import MentionDetection
-from REL.utils import process_results
-from REL.entity_disambiguation import EntityDisambiguation
-from REL.ner import Cmns, load_flair_ner
+from threading import Thread
+from gerbil_connect.server_template import REL_thread, REL_model
 
-wiki_version = "wiki_2019"
-base_url = "/mnt/d/Datasets/Radboud/"
-
-# set up the MD module
-mention_detection = MentionDetection(base_url, wiki_version)
-tagger_ner = load_flair_ner("ner-fast") # they use this for the results in their paper.
-#tagger_ngram = Cmns(base_url, wiki_version, n=5)
-
-#set up the ED module
-if wiki_version == "wiki_2014":
-    model_path = "ed-wiki-2014"
-elif wiki_version == "wiki_2019":
-    model_path = "ed-wiki-2019"
-config = {
-    "mode": "eval",
-    "model_path": model_path,
-}
-Radboud_model = EntityDisambiguation(base_url, wiki_version, config)
-
-def entity_linking(raw_text):
-    # process the raw text into the input format
-    doc_name = "my_doc"
-    input_text = {
-        doc_name: (raw_text, []),
-    }
-
-    # mention detection using flair
-    mentions, n_mentions = mention_detection.find_mentions(input_text, tagger_ner)
-
-    # entity disambiguation
-    predictions, timing = Radboud_model.predict(mentions)
-    
-    result = process_results(mentions, predictions, input_text)
-    print(result)
-    # process results
-    '''
-    Example result format:
-    {'my_doc': [(0, 13, 'Hello, world!', 'Hello_world_program', 0.6534378618767961, 182, '#NGRAM#')]}
-    '''
-    mention_list = result.get(doc_name, [])
-    output = [(mention[0], mention[0] + mention[1], mention[3]) for mention in mention_list]
-    return output
+Thread(target=REL_thread, daemon=True).start()
 
 def print_results(raw_text, output):
     for start, end, entity in output:
@@ -53,6 +10,6 @@ def print_results(raw_text, output):
         print(raw_text[start-10:start] + "*" + raw_text[start:end] + "*" + raw_text[end:end+10])
         print("")
 
-test_text = "Albert Einstein was born in Ulm, in the Kingdom of Württemberg in the German Empire, on 14 March 1879. He later moved to Switzerland where he attended the Swiss Federal Institute of Technology. In 1905, Einstein published four groundbreaking papers in the journal Annalen der Physik, which are now known as the Annus Mirabilis papers."
-output = entity_linking(test_text)
+test_text = "SOCCER - JAPAN GET LUCKY WIN, CHINA IN SURPRISE DEFEAT. Nadim Ladki AL-AIN, United Arab Emirates 1996-12-06 Japan began the defence of their Asian Cup title with a lucky 2-1 win against Syria in a Group C championship match on Friday. But China saw their luck desert them in the second match of the group, crashing to a surprise 2-0 defeat to newcomers Uzbekistan. China controlled most of the match and saw several chances missed until the 78th minute when Uzbek striker Igor Shkvyrin took advantage of a misdirected defensive header to lob the ball over the advancing Chinese keeper and into an empty net. Oleg Shatskiku made sure of the win in injury time, hitting an unstoppable left foot shot from just outside the area. The former Soviet republic was playing in an Asian Cup finals tie for the first time. Despite winning the Asian Games title two years ago, Uzbekistan are in the finals as outsiders. Two goals from defensive errors in the last six minutes allowed Japan to come from behind and collect all three points from their opening meeting against Syria. Takuya Takagi scored the winner in the 88th minute, rising to head a Hiroshige Yanagimoto cross towards the Syrian goal which goalkeeper Salem Bitar appeared to have covered but then allowed to slip into the net. It was the second costly blunder by Syria in four minutes. Defender Hassan Abbas rose to intercept a long ball into the area in the 84th minute but only managed to divert it into the top corner of Bitar's goal. Nader Jokhadar had given Syria the lead with a well-struck header in the seventh minute. Japan then laid siege to the Syrian penalty area for most of the game but rarely breached the Syrian defence. Bitar pulled off fine saves whenever they did. Japan coach Shu Kamo said : ' ' The Syrian own goal proved lucky for us. The Syrians scored early and then played defensively and adopted long balls which made it hard for us. ' ' Japan, co-hosts of the World Cup in 2002 and ranked 20th in the world by FIFA, are favourites to regain their title here. Hosts UAE play Kuwait and South Korea take on Indonesia on Saturday in Group A matches. All four teams are level with one point each from one game."
+output = REL_model(test_text)
 print_results(test_text, output)
