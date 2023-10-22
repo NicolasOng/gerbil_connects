@@ -23,8 +23,6 @@ from queue import Queue
 
 import argparse
 
-wiki_version = "wiki_2014"
-base_url = "/mnt/d/Datasets/Radboud/"
 annotation_queue = Queue()
 
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
@@ -182,8 +180,13 @@ def REL_thread():
 # start
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--wiki", type = str, default = "2019")
+parser.add_argument("--base", type = str, default = "/mnt/d/Datasets/Radboud/")
 parser.add_argument("--no-candidate-sets", action="store_true")
 args = parser.parse_args()
+
+wiki_version = "wiki_" + args.wiki
+base_url = args.base
 
 if __name__ == '__main__':
     annotator_name = "REL"
