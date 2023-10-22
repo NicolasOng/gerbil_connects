@@ -118,6 +118,8 @@ class NNProcessing(object):
                 '../data/stanford_core_nlp/stanford-ner-2018-02-27/stanford-ner.jar', encoding='utf-8')
         self.from_myspans_to_given_spans_map_errors = 0
 
+        self.no_candidate_sets = False
+
     def process(self, text, given_spans):
         self.given_spans = sorted(given_spans) if not self.args.el_mode else given_spans
         self.fetchFilteredCoreferencedCandEntities.init_coref(self.args.el_mode)
@@ -157,7 +159,18 @@ class NNProcessing(object):
 
         begin_spans, end_spans, cand_entities, cand_entities_scores = [], [], [], []
         for left, right in myspans:
+
+            #print(left, right, chunk_words[left:right])
+            
             cand_ent, scores = self.fetchFilteredCoreferencedCandEntities.process(left, right, chunk_words)
+            
+            if self.no_candidate_sets:
+                cand_ent, scores = None, None
+
+            #print(cand_ent)
+            #print(scores)
+            #print("")
+
             cand_ent_filtered, scores_filtered = [], []
             if cand_ent is not None and scores is not None:
                 for e, s in zip(cand_ent, scores):

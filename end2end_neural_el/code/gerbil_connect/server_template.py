@@ -119,14 +119,19 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+# start
+
+args, train_args = _parse_args()
+if args.build_entity_universe:
+    buildEntityUniverse = BuildEntityUniverse()
+else:
+    nnprocessing = NNProcessing(train_args, args)
+
+if args.no_candidate_sets:
+    nnprocessing.no_candidate_sets = True
+
 if __name__ == '__main__':
     annotator_name = "end2end_neural_el"
-
-    args, train_args = _parse_args()
-    if args.build_entity_universe:
-        buildEntityUniverse = BuildEntityUniverse()
-    else:
-        nnprocessing = NNProcessing(train_args, args)
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)

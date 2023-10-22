@@ -36,10 +36,10 @@ def read_json(post_data):
 
 def _parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--experiment_name", default="per_document_no_wikidump",
+    parser.add_argument("--experiment_name", default="paper_models",
                         help="under folder data/tfrecords/")
-    parser.add_argument("--training_name", default="doc_fixed_nowiki_evecsl2dropout")
-    parser.add_argument("--all_spans_training", type=bool, default=False)
+    parser.add_argument("--training_name", default="base_att_global")
+    parser.add_argument("--all_spans_training", type=bool, default=True)
     parser.add_argument("--el_mode", dest='el_mode', action='store_true')
     parser.add_argument("--ed_mode", dest='el_mode', action='store_false')
     parser.set_defaults(el_mode=True)
@@ -49,7 +49,7 @@ def _parse_args():
 
     parser.add_argument("--lowercase_spans_pem", type=bool, default=False)
 
-    parser.add_argument("--entity_extension", default=None, help="extension_entities or extension_entities_all etc")
+    parser.add_argument("--entity_extension", default="extension_entities", help="extension_entities or extension_entities_all etc")
 
     # those are for building the entity set
     parser.add_argument("--build_entity_universe", type=bool, default=False)
@@ -57,7 +57,9 @@ def _parse_args():
     parser.add_argument("--el_with_stanfordner_and_our_ed", type=bool, default=False)
 
     parser.add_argument("--persons_coreference", type=bool, default=False)
-    parser.add_argument("--persons_coreference_merge", type=bool, default=False)
+    parser.add_argument("--persons_coreference_merge", type=bool, default=True)
+
+    parser.add_argument("--no-candidate-sets", action="store_true")
 
     args = parser.parse_args()
     if args.persons_coreference_merge:
