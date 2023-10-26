@@ -451,74 +451,81 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+# start
+
+# loading the actual gold spans/entities, as KnowBert does so when evaluating.
+gold = False
+if gold:
+    with open('documents_wgold_dev.pkl', 'rb') as file:
+        documents_wgold_dev = pickle.load(file)
+    with open('documents_wgold_test.pkl', 'rb') as file:
+        documents_wgold_test = pickle.load(file)
+    gold_documents = documents_wgold_dev["documents"] + documents_wgold_test["documents"]
+    gold_documents = [{
+        "words": document["words"],
+        "doc_no_whitespace": "".join(document["words"]),
+        "doc_spaces": " ".join(document["words"]),
+        "gold_spans": document["gold_spans"],
+        "gold_entities": document["gold_entities"]
+    } for document in gold_documents]
+
+# copying "evaluate_wiki_linking.py" - which gets the scores from their paper.
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-a', '--model_archive', type=str)
+parser.add_argument('--wiki_and_wordnet', action='store_true')
+parser.add_argument('--no-candidate-sets', action='store_true')
+parser.add_argument('--full-candidate-sets', action='store_true')
+
+args = parser.parse_args()
+
+model_archive_file = args.model_archive
+is_wordnet_and_wiki = args.wiki_and_wordnet
+
+archive = load_archive(model_archive_file)
+params = archive.config
+vocab = Vocabulary.from_params(params.pop('vocabulary'))
+
+model = archive.model
+model.cuda()
+model.eval()
+
+# this line gets the object that holds the "decode" method.
+# it makes the predictions that lead to the score in the paper,
+# using the linking scores, candidate spans, and candidate entities.
+wiki_el = getattr(model, "wiki_soldered_kg").entity_linker
+    
+if is_wordnet_and_wiki:
+    reader_params = reader_params_ww
+else:
+    reader_params = reader_params_w
+
+if is_wordnet_and_wiki:
+    candidate_generator = TokenizerAndCandidateGenerator.from_params(cg_params_ww)
+
+reader = DatasetReader.from_params(Params(reader_params))
+
+if (args.no_candidate_sets):
+    print("no candidate sets.")
+    reader.set_no_candidate_sets()
+
+if (args.full_candidate_sets):
+    print("full candidate sets.")
+    reader.set_full_candidate_sets()
+
+iterator = DataIterator.from_params(Params({"type": "basic", "batch_size": 1}))
+iterator.index_with(vocab)
+
+# here, evaluate_wiki_linking.py uses the reader to read the aida file,
+# gold spans/entities included, then evaluates with them.
+# since we receive a string from GERBIL and not a file to read,
+# we have to do something different.
+# also, since we need an output prediction, which doesn't happen in
+# evaluate_wiki_linking.py.
+
 if __name__ == '__main__':
-    # loading the actual gold spans/entities, as KnowBert does so when evaluating.
-    gold = False
-    if gold:
-        with open('documents_wgold_dev.pkl', 'rb') as file:
-            documents_wgold_dev = pickle.load(file)
-        with open('documents_wgold_test.pkl', 'rb') as file:
-            documents_wgold_test = pickle.load(file)
-        gold_documents = documents_wgold_dev["documents"] + documents_wgold_test["documents"]
-        gold_documents = [{
-            "words": document["words"],
-            "doc_no_whitespace": "".join(document["words"]),
-            "doc_spaces": " ".join(document["words"]),
-            "gold_spans": document["gold_spans"],
-            "gold_entities": document["gold_entities"]
-        } for document in gold_documents]
-
     annotator_name = "KnowBert"
-    
-    # copying "evaluate_wiki_linking.py" - which gets the scores from their paper.
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--model_archive', type=str)
-    parser.add_argument('--wiki_and_wordnet', action='store_true')
-    parser.add_argument('--no-candidate-sets', action='store_true')
-
-    args = parser.parse_args()
-
-    model_archive_file = args.model_archive
-    is_wordnet_and_wiki = args.wiki_and_wordnet
-
-    archive = load_archive(model_archive_file)
-    params = archive.config
-    vocab = Vocabulary.from_params(params.pop('vocabulary'))
-
-    model = archive.model
-    model.cuda()
-    model.eval()
-
-    # this line gets the object that holds the "decode" method.
-    # it makes the predictions that lead to the score in the paper,
-    # using the linking scores, candidate spans, and candidate entities.
-    wiki_el = getattr(model, "wiki_soldered_kg").entity_linker
-        
-    if is_wordnet_and_wiki:
-        reader_params = reader_params_ww
-    else:
-        reader_params = reader_params_w
-    
-    if is_wordnet_and_wiki:
-        candidate_generator = TokenizerAndCandidateGenerator.from_params(cg_params_ww)
-    
-    reader = DatasetReader.from_params(Params(reader_params))
-
-    if (args.no_candidate_sets):
-        print("no candidate sets.")
-        reader.set_no_candidate_sets()
-
-    iterator = DataIterator.from_params(Params({"type": "basic", "batch_size": 1}))
-    iterator.index_with(vocab)
-
-    # here, evaluate_wiki_linking.py uses the reader to read the aida file,
-    # gold spans/entities included, then evaluates with them.
-    # since we receive a string from GERBIL and not a file to read,
-    # we have to do something different.
-    # also, since we need an output prediction, which doesn't happen in
-    # evaluate_wiki_linking.py.
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)

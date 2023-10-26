@@ -130,6 +130,9 @@ else:
 if args.no_candidate_sets:
     nnprocessing.no_candidate_sets = True
 
+if args.full_candidate_sets:
+    nnprocessing.full_candidate_sets = True
+
 if __name__ == '__main__':
     annotator_name = "end2end_neural_el"
 

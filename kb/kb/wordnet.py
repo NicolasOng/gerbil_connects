@@ -249,6 +249,7 @@ class WordNetCandidateMentionGenerator(MentionGenerator):
             self._unique_synsets = list(set(self._lemma_to_synset.values()))
         
         self.no_candidate_sets = False
+        self.full_candidate_sets = False
 
     def get_mentions_with_gold_spans(
             self, gold_annotations

@@ -283,44 +283,56 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+# start
+
+genre_mode = "genre3"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--no-candidate-sets", action="store_true")
+parser.add_argument("--full-candidate-sets", action="store_true")
+args = parser.parse_args()
+
+if (genre_mode == "genre1"):
+    model = GENRE.from_pretrained(MODEL_LOCATION).eval()
+
+    with open("mention_to_candidates_dict.pkl", "rb") as f:
+        mention_to_candidates_dict = pickle.load(f)
+    
+    with open("mention_trie.pkl", "rb") as f:
+        mention_trie = pickle.load(f)
+elif genre_mode == "genre3":
+    print("load model...")
+    if args.no_candidate_sets:
+        print("...without candidate sets...")
+        model = Model(yago=True,
+                    mention_trie=None,
+                    mention_to_candidates_dict=None,
+                    candidates_trie=None)
+    elif args.full_candidate_sets:
+        print("...with full candidate sets...")
+        model = Model(yago=True,
+                    mention_trie="data/mention_trie.pkl",
+                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
+                    candidates_trie=None)
+        model.set_full_candidates()
+    else:
+        print("...with elevant candidate sets...")
+        model = Model(yago=True,
+                    mention_trie="data/mention_trie.pkl",
+                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
+                    candidates_trie=None)
+        
+    wikipedia = False
+    if not wikipedia:
+        print("read mapping...")
+        mapping = get_mapping()
+
+        print("load redirects...")
+        with open("data/elevant/link_redirects.pkl", "rb") as f:
+            redirects = pickle.load(f)
+
 if __name__ == '__main__':
     annotator_name = "GENRE"
-    genre_mode = "genre3"
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--no-candidate-sets", action="store_true")
-    args = parser.parse_args()
-
-    if (genre_mode == "genre1"):
-        model = GENRE.from_pretrained(MODEL_LOCATION).eval()
-
-        with open("mention_to_candidates_dict.pkl", "rb") as f:
-            mention_to_candidates_dict = pickle.load(f)
-        
-        with open("mention_trie.pkl", "rb") as f:
-            mention_trie = pickle.load(f)
-    elif genre_mode == "genre3":
-        print("load model...")
-        if not args.no_candidate_sets:
-            print("...with candidate sets...")
-            model = Model(yago=True,
-                        mention_trie="data/mention_trie.pkl",
-                        mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
-                        candidates_trie=None)
-        else:
-            print("...without candidate sets...")
-            model = Model(yago=True,
-                        mention_trie=None,
-                        mention_to_candidates_dict=None,
-                        candidates_trie=None)
-        wikipedia = False
-        if not wikipedia:
-            print("read mapping...")
-            mapping = get_mapping()
-
-            print("load redirects...")
-            with open("data/elevant/link_redirects.pkl", "rb") as f:
-                redirects = pickle.load(f)
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)

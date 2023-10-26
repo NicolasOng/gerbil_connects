@@ -100,7 +100,12 @@ def ea_el_model(raw_text):
     # get the model predictions
     # the model can handle all the documents GERBIL sends,
     # so I won't bother with splitting into sentences.
-    if (not args.no_candidate_sets) and (dataset_id is not None):
+    if args.no_candidate_sets:
+        model_preds = model.sample([dataset_input])
+    elif args.full_candidate_sets and (dataset_id is not None):
+        full_dataset_candidates = [full_candidates_list for _ in dataset_candidates]
+        model_preds = model.sample([dataset_input], candidates=[full_dataset_candidates], anchors=[dataset_anchors], all_targets=True)
+    elif dataset_id is not None:
         model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
     else:
         model_preds = model.sample([dataset_input])
@@ -179,29 +184,38 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+# start
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--no-candidate-sets", action="store_true")
+parser.add_argument("--full-candidate-sets", action="store_true")
+args = parser.parse_args()
+
+# get the candidate sets
+aida_test_dataset = load_jsonl_file("./data/aida_test_dataset.jsonl")
+aida_val_dataset = load_jsonl_file("./data/aida_val_dataset.jsonl")
+aida_dataset = aida_test_dataset + aida_val_dataset
+for i, item in enumerate(aida_dataset):
+    item["input_no_white_space"] = remove_whitespaces(item["input"])
+
+# loading the model on GPU and setting the the threshold to the
+# optimal value (based on AIDA validation set)
+model = EfficientEL.load_from_checkpoint("./models/model.ckpt", strict=False).eval().cuda()
+model.hparams.threshold = -3.2
+model.hparams.test_with_beam_search = False
+model.hparams.test_with_beam_search_no_candidates = False
+
+# loading the KB with the entities
+model.generate_global_trie()
+
+if args.full_candidate_sets:
+    import pickle
+    with open('candidate_list.pkl', 'rb') as f:
+        # Load the list from the file
+        full_candidates_list = pickle.load(f)
+
 if __name__ == '__main__':
     annotator_name = "ea-el"
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--no-candidate-sets", action="store_true")
-    args = parser.parse_args()
-
-    # get the candidate sets
-    aida_test_dataset = load_jsonl_file("./data/aida_test_dataset.jsonl")
-    aida_val_dataset = load_jsonl_file("./data/aida_val_dataset.jsonl")
-    aida_dataset = aida_test_dataset + aida_val_dataset
-    for i, item in enumerate(aida_dataset):
-        item["input_no_white_space"] = remove_whitespaces(item["input"])
-
-    # loading the model on GPU and setting the the threshold to the
-    # optimal value (based on AIDA validation set)
-    model = EfficientEL.load_from_checkpoint("./models/model.ckpt", strict=False).eval().cuda()
-    model.hparams.threshold = -3.2
-    model.hparams.test_with_beam_search = False
-    model.hparams.test_with_beam_search_no_candidates = False
-
-    # loading the KB with the entities
-    model.generate_global_trie()
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)

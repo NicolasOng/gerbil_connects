@@ -171,6 +171,10 @@ class WikiCandidateMentionGenerator(MentionGenerator):
             self.p_e_m_keys_for_sampling = list(self.p_e_m.keys())
 
         self.no_candidate_sets = False
+        self.full_candidate_sets = False
+        with open('candidate_list.pkl', 'rb') as f:
+            # Load the list from the file
+            self.candidate_list = pickle.load(f)
 
     def get_mentions_raw_text(self, text: str, whitespace_tokenize=False):
         """
@@ -288,6 +292,11 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         """
         if self.no_candidate_sets:
             return []
+        
+        if self.full_candidate_sets:
+            cands_score = 1/len(self.candidate_list)
+            # don't need the entity ids
+            return [(0, candidate, cands_score) for candidate in self.candidate_list]
         
         if self.random_candidates:
             random_key = random.choice(self.p_e_m_keys_for_sampling)

@@ -81,6 +81,12 @@ class LinkingReader(DatasetReader):
         self.mention_generator.no_candidate_sets = True
         for _, generator in self.extra_candidate_generators.items():
             generator.no_candidate_sets = True
+    
+    def set_full_candidate_sets(self):
+        self.mention_generator.full_candidate_sets = True
+        for _, generator in self.extra_candidate_generators.items():
+            # haven't made the full wordnet candidate list.
+            generator.no_candidate_sets = True
 
     def _read(self, file_path: str):
 

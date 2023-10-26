@@ -60,6 +60,7 @@ def _parse_args():
     parser.add_argument("--persons_coreference_merge", type=bool, default=True)
 
     parser.add_argument("--no-candidate-sets", action="store_true")
+    parser.add_argument("--full-candidate-sets", action="store_true")
 
     args = parser.parse_args()
     if args.persons_coreference_merge:

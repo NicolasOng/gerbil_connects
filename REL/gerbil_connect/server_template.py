@@ -163,6 +163,13 @@ def REL_thread():
             for mention in mentions[doc_name]:
                 mention["candidates"] = []
 
+        if args.full_candidate_sets:
+            # fills the candidate sets
+            num_candidates = len(candidate_list)
+            cand_score = 1/num_candidates
+            for mention in mentions[doc_name]:
+                mention["candidates"] = [[candidate, cand_score] for candidate in candidate_list]
+
         # entity disambiguation
         predictions, timing = Radboud_model.predict(mentions)
         
@@ -183,10 +190,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--wiki", type = str, default = "2019")
 parser.add_argument("--base", type = str, default = "/mnt/d/Datasets/Radboud/")
 parser.add_argument("--no-candidate-sets", action="store_true")
+parser.add_argument("--full-candidate-sets", action="store_true")
 args = parser.parse_args()
 
 wiki_version = "wiki_" + args.wiki
 base_url = args.base
+
+if args.full_candidate_sets:
+    import pickle
+    with open('candidate_list.pkl', 'rb') as f:
+        # Load the list from the file
+        candidate_list = pickle.load(f)
 
 if __name__ == '__main__':
     annotator_name = "REL"

@@ -119,6 +119,11 @@ class NNProcessing(object):
         self.from_myspans_to_given_spans_map_errors = 0
 
         self.no_candidate_sets = False
+        self.full_candidate_sets = False
+
+        with open('candidate_list.pkl', 'rb') as f:
+            # Load the list from the file
+            self.full_candidate_list = pickle.load(f)
 
     def process(self, text, given_spans):
         self.given_spans = sorted(given_spans) if not self.args.el_mode else given_spans
@@ -166,6 +171,11 @@ class NNProcessing(object):
             
             if self.no_candidate_sets:
                 cand_ent, scores = None, None
+            
+            if self.full_candidate_sets:
+                cand_ent = self.full_candidate_list
+                cands_score = 1/len(cand_ent)
+                scores = [cands_score for _ in cand_ent]
 
             #print(cand_ent)
             #print(scores)

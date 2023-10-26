@@ -95,6 +95,7 @@ def parse_args():
     parser.add_argument("--granularity", type = str, default = "document", choices = ("document", "paragraph"))
 
     parser.add_argument("--no-candidate-sets", action = "store_true")
+    parser.add_argument("--full-candidate-sets", action = "store_true")
 
     return parser.parse_args()
 
@@ -108,6 +109,9 @@ def load_model(args):
 
     if args.no_candidate_sets:
         model.set_no_candidate_sets()
+    
+    if args.full_candidate_sets:
+        model.set_full_candidate_sets()
 
     return model
 
@@ -255,42 +259,44 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+# start
+
+args = parse_args()
+print(os.uname(), flush = True)
+print("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", None), flush = True)
+print(args, flush = True)
+
+model = load_model(args)
+
+use_type_emb =  args.use_type_emb
+type_emb_option = args.type_emb_option
+do_reinit_lm = args.do_reinit_lm
+wikidata_entity_types_path = args.wikidata_entity_types_path
+
+model.use_ebert_emb = args.use_ebert_emb
+model.type_emb_option = args.type_emb_option
+model.use_pos_emb = args.use_pos_emb
+model.model_dir = args.model_dir
+model.dev_file = args.dev_file
+model.test_file = args.test_file
+
+if use_type_emb and type_emb_option == 'mix':
+    model.gate_hidden = nn.Linear(model.null_vector.shape[0],
+                                    model.null_vector.shape[0])
+    model.gate_hidden.to(device=model.device)
+
+model.ent2idx = {None: 0}
+
+if do_reinit_lm:
+    for module in model.model.cls.predictions.transform.modules():
+        model.model._init_weights(module)
+
+if use_type_emb and not model.use_ebert_emb:
+    model.wiki_title2qid, model.qid2label, model.qid2parent_qids = load_wikidata(wikidata_entity_types_path)
+
 if __name__ == '__main__':
     annotator_name = "eee-bert"
-
-    args = parse_args()
-    print(os.uname(), flush = True)
-    print("CUDA_VISIBLE_DEVICES", os.environ.get("CUDA_VISIBLE_DEVICES", None), flush = True)
-    print(args, flush = True)
-
-    model = load_model(args)
-
-    use_type_emb =  args.use_type_emb
-    type_emb_option = args.type_emb_option
-    do_reinit_lm = args.do_reinit_lm
-    wikidata_entity_types_path = args.wikidata_entity_types_path
-
-    model.use_ebert_emb = args.use_ebert_emb
-    model.type_emb_option = args.type_emb_option
-    model.use_pos_emb = args.use_pos_emb
-    model.model_dir = args.model_dir
-    model.dev_file = args.dev_file
-    model.test_file = args.test_file
-
-    if use_type_emb and type_emb_option == 'mix':
-        model.gate_hidden = nn.Linear(model.null_vector.shape[0],
-                                        model.null_vector.shape[0])
-        model.gate_hidden.to(device=model.device)
-
-    model.ent2idx = {None: 0}
-
-    if do_reinit_lm:
-        for module in model.model.cls.predictions.transform.modules():
-            model.model._init_weights(module)
-
-    if use_type_emb and not model.use_ebert_emb:
-        model.wiki_title2qid, model.qid2label, model.qid2parent_qids = load_wikidata(wikidata_entity_types_path)
-
+    
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:

@@ -196,6 +196,9 @@ class EntityLinkingAsLM:
          
     def set_no_candidate_sets(self):
         self.candidate_generator.no_candidate_sets = True
+    
+    def set_full_candidate_sets(self):
+        self.candidate_generator.full_candidate_sets = True
 
     def score_f1(self, true, pred):
         assert len(pred) == len(true)
