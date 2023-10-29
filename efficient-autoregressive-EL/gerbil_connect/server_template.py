@@ -35,6 +35,11 @@ def ea_el_get_formatted_spans(preds, raw_text, dataset_text):
         end = pred[1]
         entity_list = pred[2]
         entity = entity_list[0][0]
+
+        if end <= 0:
+            # sometimes, 0, 0, NIL is predicted.
+            continue
+    
         # see get_markdown in src.utils
         entity = entity.replace(" ", "_")
         # convert the start/end
@@ -103,7 +108,9 @@ def ea_el_model(raw_text):
     if args.no_candidate_sets:
         model_preds = model.sample([dataset_input])
     elif args.full_candidate_sets and (dataset_id is not None):
-        full_dataset_candidates = [full_candidates_list for _ in dataset_candidates]
+        # before: a list of candidate lists like: ['Culture of Japan', 'Emperor of Japan', 'Japan Japan', ...]
+        # after: each candidate list is the full candidate list.
+        full_dataset_candidates = [full_candidates_list.copy() for _ in dataset_candidates]
         model_preds = model.sample([dataset_input], candidates=[full_dataset_candidates], anchors=[dataset_anchors], all_targets=True)
     elif dataset_id is not None:
         model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
@@ -213,6 +220,7 @@ if args.full_candidate_sets:
     with open('candidate_list.pkl', 'rb') as f:
         # Load the list from the file
         full_candidates_list = pickle.load(f)
+    full_candidates_list = [entity.replace("_", " ") for entity in full_candidates_list]
 
 if __name__ == '__main__':
     annotator_name = "ea-el"
