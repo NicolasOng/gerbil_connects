@@ -1,12 +1,6 @@
 from gerbil_connect.server_template import eeebert_model
 
 import pickle
-import argparse
-
-# Initialize the argument parser
-parser = argparse.ArgumentParser()
-parser.add_argument('--save', action='store_true', help='Toggle saving of outputs to a pickle file')
-args = parser.parse_args()
 
 def print_results(raw_text, output):
     for start, end, entity in output:
@@ -30,7 +24,7 @@ for i, doc in enumerate(new_gold_documents):
     print(output)
     print_results(raw_text, output)
 
-if args.save:
+if True:
     with open('outputs_dict.pkl', 'wb') as f:
         pickle.dump(outputs_dict, f)
     print('Outputs saved to outputs_dict.pkl')
