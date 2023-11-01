@@ -30,7 +30,9 @@ class Model:
         self.model = GENRE.from_pretrained(MODEL_LOCATION).eval()
         if torch.cuda.is_available():
             print("move model to GPU...")
-            self.model = self.model.cuda()
+            device = 1  # Index of the GPU you want to use
+            torch.cuda.set_device(device)
+            self.model = self.model.cuda(device)
         self.mention_trie = pickle_load(mention_trie, verbose=True)
         self.mention_to_candidates_dict = pickle_load(mention_to_candidates_dict, verbose=True)
         self.candidates_trie = pickle_load(candidates_trie, verbose=True)
