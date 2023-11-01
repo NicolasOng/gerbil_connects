@@ -201,7 +201,8 @@ args = parser.parse_args()
 # get the candidate sets
 aida_test_dataset = load_jsonl_file("./data/aida_test_dataset.jsonl")
 aida_val_dataset = load_jsonl_file("./data/aida_val_dataset.jsonl")
-aida_dataset = aida_test_dataset + aida_val_dataset
+aida_c_dataset = load_jsonl_file("./data/aida_c_dataset.jsonl")
+aida_dataset = aida_test_dataset + aida_val_dataset + aida_c_dataset
 for i, item in enumerate(aida_dataset):
     item["input_no_white_space"] = remove_whitespaces(item["input"])
 

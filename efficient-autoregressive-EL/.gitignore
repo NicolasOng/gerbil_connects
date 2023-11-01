@@ -135,3 +135,4 @@ data/
 gold_documents_new.pkl
 config.json
 lightning_logs/
+annotate_ea-el_result.json
