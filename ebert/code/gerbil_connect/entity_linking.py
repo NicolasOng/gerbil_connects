@@ -18,13 +18,22 @@ outputs_dict = {}
 for i, doc in enumerate(new_gold_documents):
     print("------ " + str(i) + " ------")
     raw_text = doc["raw_text"]
-    output = ebert_model(raw_text)
+
+    try:
+        output = ebert_model(raw_text)
+    except Exception as e:
+        print(f"Error processing document {i}: {str(e)}")
+        output = []
+    
     outputs_dict[raw_text] = output
+
     print(raw_text)
     print(output)
     print_results(raw_text, output)
 
-if True:
+    # Save the outputs dictionary continuously
     with open('outputs_dict.pkl', 'wb') as f:
         pickle.dump(outputs_dict, f)
-    print('Outputs saved to outputs_dict.pkl')
+    print('Intermediate outputs saved to outputs_dict.pkl')
+
+print('All documents processed and outputs saved to outputs_dict.pkl')
