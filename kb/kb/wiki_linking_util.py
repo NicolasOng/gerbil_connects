@@ -173,6 +173,7 @@ class WikiCandidateMentionGenerator(MentionGenerator):
         self.full_candidate_sets = False
         with open('candidate_list.pkl', 'rb') as f:
             # Load the list from the file
+            import pickle
             self.candidate_list = pickle.load(f)
 
     def get_mentions_raw_text(self, text: str, whitespace_tokenize=False):
