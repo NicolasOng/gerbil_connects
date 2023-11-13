@@ -269,6 +269,10 @@ class DotAttentionWithPrior(torch.nn.Module):
             weighted_entity_embeddings: weighted entity embedding
                 (batch_size, num_spans, entity_dim)
         """
+        # this method actually computes the linking scores, given the span representations, entity embeddings, and entity priors.
+        # basically take the dot product between a span's representation and the entity embedding, and combine that with the entity's prior in an MLP.
+        # this computes the linking score for that entity.
+
         # dot product between span embedding and entity embeddings, scaled
         # by sqrt(dimension) as in Transformer
         # (batch_size, num_spans, num_candidates)
@@ -488,6 +492,9 @@ class EntityDisambiguator(BaseEntityDisambiguator, torch.nn.Module):
                 (batch_size, max_num_spans, max_entity_ids)
             masked with -10000 for invalid links
         """
+
+        # this method is where the linking scores are calculated.
+
         # get the candidate entity embeddings
         # (batch_size, num_spans, num_candidates, entity_embedding_dim)
         candidate_entity_embeddings = self.entity_embeddings(candidate_entities)
@@ -625,6 +632,8 @@ class EntityLinkingWithCandidateMentions(EntityLinkingBase):
             **kwargs
         )
 
+        # here are the linking scores we care about, calculated above.
+        # also note that the predictions are made below, in _compute_loss.
         linking_scores = disambiguator_output['linking_scores']
 
         return_dict = disambiguator_output
@@ -773,6 +782,8 @@ class SolderedKG(Model):
                 (contextual_embeddings + self.dropout(bert_representations_with_entities)).contiguous()
         )
 
+        # here are the linking scores that we care about.
+        # note that they are in "linker_output", calculated above.
         return_dict = {'entity_attention_probs': entity_attention_probs,
                        'contextual_embeddings': new_contextual_embeddings,
                        'linking_scores': linker_output['linking_scores']}
@@ -940,6 +951,7 @@ class KnowBert(BertPretrainedMetricsLoss):
 
                 contextual_embeddings = kg_output['contextual_embeddings']
                 # here is where the SolderedKG's output is added to this model's output.
+                # for the wiki component, the key 'wiki' is added to the output
                 output[soldered_kg_key] = {}
                 for key in kg_output.keys():
                     if key != 'loss' and key != 'contextual_embeddings':
@@ -964,6 +976,9 @@ class KnowBert(BertPretrainedMetricsLoss):
                               lm_label_ids['lm_labels'],
                               kwargs['mask_indicator'])
 
+        # we don't care about these outputs.
+        # we care about output['wiki'] (and maybe output['wordnet']),
+        # which are added above.
         output['loss'] = loss
         output['pooled_output'] = pooled_output
         output['contextual_embeddings'] = contextual_embeddings
