@@ -51,7 +51,7 @@ def load_model(is_init, config_path, model_path, device, type_loss,
         model = DualEncoder(ctxt_bert, cand_bert, type_loss)
     else:
         model = DualEncoder(ctxt_bert, cand_bert, type_loss)
-        model.load_state_dict(state_dict['sd'])
+        model.load_state_dict(state_dict['sd'], strict=False)
     return model
 
 

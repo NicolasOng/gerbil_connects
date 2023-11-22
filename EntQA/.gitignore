@@ -127,3 +127,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# local stuff
+logs/
+blink_model/
+model_retriever/
+candidates_embeds/
+kb/
+model_reader/
+__pycache__/
+models/
