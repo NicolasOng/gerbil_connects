@@ -14,6 +14,9 @@ from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from gerbil_connect.nif_parser import NIFParser
 
+import argparse
+from gerbil_experiments.nn_processing import Annotator
+
 app = Flask(__name__, static_url_path='', static_folder='../../../frontend/build')
 cors = CORS(app, resources={r"/suggest": {"origins": "*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -29,6 +32,89 @@ n3_entity_to_kb_mappings = None
 
 lock = Lock()
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--log_path', default='logs/log.txt', type=str,
+                        help='log path')
+    parser.add_argument('--blink_dir', default='blink_model/', type=str,
+                        help='blink pretrained bi-encoder path')
+    parser.add_argument(
+        "--passage_len", type=int, default=32,
+        help="the length of each passage"
+    )
+    parser.add_argument(
+        "--stride",
+        type=int,
+        default=16,
+        help="length of stride when chunking passages",
+    )
+    parser.add_argument('--bsz_retriever', type=int, default=8192,
+                        help='the batch size of retriever')
+    parser.add_argument('--max_len_retriever', type=int, default=42,
+                        help='max length of the retriever input passage ')
+    parser.add_argument('--retriever_path', default='model_retriever/retriever.pt', type=str,
+                        help='trained retriever path')
+    parser.add_argument('--type_retriever_loss', type=str,
+                        default='sum_log_nce',
+                        choices=['log_sum', 'sum_log', 'sum_log_nce',
+                                 'max_min'],
+                        help='type of marginalize for retriever')
+    parser.add_argument('--gpus', default='0,1,2,3', type=str,
+                        help='GPUs separated by comma [%(default)s]')
+    parser.add_argument('--cands_embeds_path', default='candidates_embeds/candidate_embeds.npy', type=str,
+                        help='the path of candidates embeddings')
+    parser.add_argument('--k', type=int, default=100,
+                        help='top-k candidates for retriever')
+    parser.add_argument('--ents_path', default='kb/entities_kilt.json', type=str,
+                        help='entity file path')
+    parser.add_argument('--max_len_reader', type=int, default=180,
+                        help='max length of joint input [%(default)d]')
+    parser.add_argument('--max_num_candidates', type=int, default=100,
+                        help='max number of candidates [%(default)d] when '
+                             'eval for reader')
+    parser.add_argument('--bsz_reader', type=int, default=32,
+                        help='batch size [%(default)d]')
+    parser.add_argument('--reader_path', default='model_reader/reader.pt', type=str,
+                        help='trained reader path')
+    parser.add_argument('--type_encoder', type=str,
+                        default='squad2_electra_large',
+                        help='the type of encoder')
+    parser.add_argument('--type_span_loss', type=str,
+                        default='sum_log',
+                        choices=['log_sum', 'sum_log', 'sum_log_nce',
+                                 'max_min'],
+                        help='the type of marginalization for reader')
+    parser.add_argument('--type_rank_loss', type=str,
+                        default='sum_log',
+                        choices=['log_sum', 'sum_log', 'sum_log_nce',
+                                 'max_min'],
+                        help='the type of marginalization for reader')
+    parser.add_argument('--num_spans', type=int, default=3,
+                        help='top num_spans for evaluation on reader')
+    parser.add_argument('--thresd', type=float, default=0.05,
+                        help='probabilty threshold for evaluation on reader')
+    parser.add_argument('--max_answer_len', type=int, default=10,
+                        help='max length of answer [%(default)d]')
+    parser.add_argument('--max_passage_len', type=int, default=32,
+                        help='max length of question [%(default)d] for reader')
+    parser.add_argument('--document', type=str,
+                        help='test document')
+    parser.add_argument('--save_span_path', type=str,
+                        help='save span-based document-level results path')
+    parser.add_argument('--save_char_path', type=str,
+                        help='save char-based path')
+    parser.add_argument('--add_topic', action='store_true',
+                        help='add title?')
+    parser.add_argument('--do_rerank', action='store_true',
+                        help='do reranking for reader?')
+    parser.add_argument('--use_title', action='store_true',
+                        help='use title?')
+    parser.add_argument('--no_multi_ents', action='store_true',
+                        help='no repeated entities are allowed given a span?')
+
+    args = parser.parse_args()
+    return args
+
 def get_n3_entity_to_kb_mappings():
     kb_file = pathlib.Path(os.path.abspath(__file__)).parent.parent.parent / "resources" / "data" / "n3_kb_mappings.json"
     knowledge_base = json.load(kb_file.open("r"))
@@ -42,14 +128,12 @@ def extract_dump_res_json(parsed_collection):
                   for phrase in parsed_collection.contexts[0]._context.phrases]
     }
 
-def mock_entity_linking_model(raw_text):
-    # TODO replace this function call with a call to your annotator, which receives the raw text and returns annotation
-    #  spans over the raw text in the format of (start character, end character, entity identifier)
-    assert len(raw_text) > 0
-    return [
-        (0, 3, 'Product_demonstration'),
-        (10, 12, 'Example')
-    ]
+def entqa_model(raw_text):
+    # nnprocessing.process expects a second parameter, given_spans
+    response = entqa_annotator.get_predicts(raw_text)
+    # the response is in (start, length, name) instead of (start, end, name).
+    converted_response = [(start, start + length, name) for start, length, name in response]
+    return converted_response
 
 class GerbilAnnotator:
     """
@@ -61,7 +145,7 @@ class GerbilAnnotator:
         raw_text = context.mention
         # TODO We assume Wikipedia as the knowledge base, but you can consider any other knowledge base in here:
         kb_prefix = "https://en.wikipedia.org/wiki/"
-        for annotation in mock_entity_linking_model(raw_text):
+        for annotation in entqa_model(raw_text):
             # TODO you can have the replacement for mock_entity_linking_model to return the prediction_prob as well:
             prediction_probability = 1.0
             context.add_phrase(beginIndex=annotation[0], endIndex=annotation[1], score=prediction_probability,
@@ -116,8 +200,15 @@ def annotate_n3():
         n3_entity_to_kb_mappings = get_n3_entity_to_kb_mappings()
     return generic_annotate(request.data, n3_entity_to_kb_mappings)
 
+# start
+
+args = parse_args()
+
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
+entqa_annotator = Annotator(args)
+
 if __name__ == '__main__':
-    annotator_name = "<template>"
+    annotator_name = "EntQA"
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
     finally:
