@@ -32,6 +32,13 @@ n3_entity_to_kb_mappings = None
 
 lock = Lock()
 
+def print_results(raw_text, output):
+    for start, end, entity in output:
+        print(start, end, entity)
+        print(raw_text[start:end])
+        print(raw_text[start-10:start] + "*" + raw_text[start:end] + "*" + raw_text[end:end+10])
+        print("")
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_path', default='logs/log.txt', type=str,
@@ -133,6 +140,9 @@ def entqa_model(raw_text):
     response = entqa_annotator.get_predicts(raw_text)
     # the response is in (start, length, name) instead of (start, end, name).
     converted_response = [(start, start + length, name) for start, length, name in response]
+
+    print_results(raw_text, converted_response)
+
     return converted_response
 
 class GerbilAnnotator:
