@@ -66,7 +66,7 @@ def parse_args():
                         choices=['log_sum', 'sum_log', 'sum_log_nce',
                                  'max_min'],
                         help='type of marginalize for retriever')
-    parser.add_argument('--gpus', default='0,1,2,3', type=str,
+    parser.add_argument('--gpus', default='0,1', type=str,
                         help='GPUs separated by comma [%(default)s]')
     parser.add_argument('--cands_embeds_path', default='candidates_embeds/candidate_embeds.npy', type=str,
                         help='the path of candidates embeddings')
@@ -98,7 +98,7 @@ def parse_args():
                         help='the type of marginalization for reader')
     parser.add_argument('--num_spans', type=int, default=3,
                         help='top num_spans for evaluation on reader')
-    parser.add_argument('--thresd', type=float, default=0.05,
+    parser.add_argument('--thresd', type=float, default=0.05, #1.5e-5
                         help='probabilty threshold for evaluation on reader')
     parser.add_argument('--max_answer_len', type=int, default=10,
                         help='max length of answer [%(default)d]')

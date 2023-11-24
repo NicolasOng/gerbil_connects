@@ -106,12 +106,18 @@ class Annotator(object):
                                        reader_loader, self.args.num_spans,
                                        samples_reader, self.args.do_rerank,
                                        True, self.args.no_multi_ents)
+        print(len(raw_predicts))
+        print(raw_predicts[0].shape)
         pruned_predicts = prune_predicts(raw_predicts, self.args.thresd)
+        #print(pruned_predicts)
         transformed_predicts = process_raw_predicts(pruned_predicts,
                                                     samples_reader)
+        #print(transformed_predicts)
         doc_predicts_span = get_doc_level_predicts(transformed_predicts,
                                                    self.args.stride)
+        #print(doc_predicts_span)
         doc_predicts_gerbil = token_span_to_gerbil_span(doc_predicts_span,
                                                         token2char_start,
                                                         token2char_end)
+        #print(doc_predicts_gerbil)
         return doc_predicts_gerbil

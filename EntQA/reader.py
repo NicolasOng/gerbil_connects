@@ -182,7 +182,9 @@ def prune_predicts(predicts, threshold):
             results.append([])
         else:
             cand_probs = cand_predicts[:, -1]
+            print(f"Max: {cand_probs.max()}, Min: {cand_probs.min()}, Average: {cand_probs.mean()}")
             selection = (cand_probs > threshold)
             cand_results = cand_predicts[:, :-1].long()[selection].tolist()
+            #print(cand_results)
             results.append(cand_results)
     return results

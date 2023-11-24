@@ -162,10 +162,24 @@ def token_to_char_map(document, doc_tokens):
     return token2char_start, token2char_end
 
 
-def token_span_to_gerbil_span(predicts, token2char_start, token2char_end):
+def token_span_to_gerbil_span_noerror(predicts, token2char_start, token2char_end):
     results = [(token2char_start[p[0]],
                 token2char_end[p[1]] - token2char_start[p[0]] + 1,
                 p[2]) for p in predicts]
+
+    return results
+
+def token_span_to_gerbil_span(predicts, token2char_start, token2char_end):
+    results = []
+    for p in predicts:
+        try:
+            start_span = token2char_start[p[0]]
+            end_span = token2char_end[p[1]] - start_span + 1
+            results.append((start_span, end_span, p[2]))
+        except KeyError as e:
+            print(f"Key error with index: {e}")
+            # Optionally, handle the error or skip the problematic entry
+            # results.append((default_start, default_end, p[2])) # Example
 
     return results
 
