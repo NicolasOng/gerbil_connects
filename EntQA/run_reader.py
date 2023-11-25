@@ -98,7 +98,7 @@ def load_model(is_init, model_path, type_encoder, device, type_span_loss,
         model = Reader(encoder, type_span_loss, do_rerank, type_rank_loss,
                        max_answer_len, max_passage_len)
         try:
-            model.load_state_dict(package['sd'], strict=False)
+            model.load_state_dict(package['sd'])
         except RuntimeError:
             # forgot to save model.module.sate_dict
             from collections import OrderedDict
@@ -109,7 +109,7 @@ def load_model(is_init, model_path, type_encoder, device, type_span_loss,
                 # for loading our old version reader model
                 if name != 'topic_query':
                     new_state_dict[name] = v
-            model.load_state_dict(new_state_dict, strict=False)
+            model.load_state_dict(new_state_dict)
         return model
 
 
