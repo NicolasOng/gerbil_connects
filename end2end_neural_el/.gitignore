@@ -15,3 +15,6 @@ data/
 end2end_neural_el_env/
 deep-ed/data/
 local/
+
+candidate_list.pkl
+gold_documents_new_02.pkl

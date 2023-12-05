@@ -9,7 +9,7 @@ def print_results(raw_text, output):
         print(raw_text[start-10:start] + "*" + raw_text[start:end] + "*" + raw_text[end:end+10])
         print("")
 
-with open("gold_documents_new.pkl", 'rb') as file:
+with open("gold_documents_new_02.pkl", 'rb') as file:
     new_gold_documents = pickle.load(file)
 
 # Initialize an empty dictionary to store the outputs

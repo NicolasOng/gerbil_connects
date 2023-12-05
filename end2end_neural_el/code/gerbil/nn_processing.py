@@ -95,7 +95,7 @@ class NNProcessing(object):
 
         self.wikiid2nnid = load_wikiid2nnid(extension_name=args.entity_extension)
         self.nnid2wikiid = reverse_dict(self.wikiid2nnid, unique_values=True)
-        _, self.wiki_id_name_map = load_wiki_name_id_map()
+        self.wiki_name_id_map, self.wiki_id_name_map = load_wiki_name_id_map()
 
         with open(args.experiment_folder+"prepro_args.pickle", 'rb') as handle:
             self.prepro_args = pickle.load(handle)
@@ -124,6 +124,8 @@ class NNProcessing(object):
         with open('candidate_list.pkl', 'rb') as f:
             # Load the list from the file
             self.full_candidate_list = pickle.load(f)
+        
+        self.full_candidate_list = [self.wiki_name_id_map[item.replace('_', ' ')] for item in self.full_candidate_list if item in self.wiki_name_id_map] #827
 
     def process(self, text, given_spans):
         self.given_spans = sorted(given_spans) if not self.args.el_mode else given_spans
