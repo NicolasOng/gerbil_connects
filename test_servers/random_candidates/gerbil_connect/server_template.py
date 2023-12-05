@@ -43,6 +43,10 @@ lock = Lock()
 with open('gold_documents_new_02.pkl', 'rb') as file:
     gold_documents = pickle.load(file)
 
+with open('candidate_list.pkl', 'rb') as f:
+    # Load the list from the file
+    full_candidate_list = pickle.load(f)
+
 def aida_get_gold_document(raw_text):
     '''
     given the raw text from GERBIL, this gets the "gold document" from a file.
@@ -97,6 +101,7 @@ def perfect_entity_linking_model(raw_text):
 
         candidate_entities = candidate_generator.process(gold_mention)
         candidate_entities = [entity[1] for entity in candidate_entities]
+        #candidate_entities = full_candidate_list
 
         pred_entity = random.choice(candidate_entities)
 
@@ -175,7 +180,7 @@ def annotate_n3():
 candidate_generator = WikiCandidateMentionGenerator(entity_world_path = None, max_candidates = 1000) 
 
 if __name__ == '__main__':
-    annotator_name = "perfect_candidates"
+    annotator_name = "random_candidates"
 
     try:
         app.run(host="localhost", port=int(os.environ.get("PORT", 3002)), debug=False)
