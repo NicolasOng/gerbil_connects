@@ -43,6 +43,7 @@ class Model:
         with open('candidate_list.pkl', 'rb') as f:
             # Load the list from the file
             full_candidates_list = pickle.load(f)
+        full_candidates_list = [entity.replace("_", " ") for entity in full_candidates_list]
         for mention in self.mention_to_candidates_dict:
             self.mention_to_candidates_dict[mention] = full_candidates_list
     
