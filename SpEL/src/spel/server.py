@@ -53,6 +53,7 @@ The second argument after the annotator name can be any of the following:
     - pw: pprforned (context aware setting)
 """
 candidate_setting = sys.argv[2].lower()
+candidate_setting2 = sys.argv[3].lower()
 
 if annotator_name == 'spel':
     from spel.evaluate_local import SpELEvaluator
@@ -77,6 +78,8 @@ if candidate_setting != "n":
 else:
     print(f" * (not) loading the candidates!")
 
+if candidate_setting2 == "f":
+    candidates_manager_to_use.full_candidates = True
 
 def extract_dump_res_json(parsed_collection):
     return {

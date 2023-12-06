@@ -3,6 +3,8 @@ This file contains the implementation of the candidate manager in charge of load
  and modifying the phrase annotations using the loaded candidates.
 """
 import json
+import pickle
+
 from spel.span_annotation import PhraseAnnotation
 from spel.configuration import get_resources_dir
 
@@ -27,6 +29,11 @@ class CandidateManager:
         self.is_indexed_for_spans = is_indexed_for_spans
         self.is_kb_yago = is_kb_yago
         self.is_ppr_for_ned = is_ppr_for_ned
+        
+        self.full_candidates = False
+        with open('candidate_list.pkl', 'rb') as f:
+            # Load the list from the file
+            self.full_candidates_list = pickle.load(f)
 
     def load_ppr_for_ned_candidates(self, is_context_agnostic, is_indexed_for_spans):
         if is_context_agnostic:
@@ -83,6 +90,10 @@ class CandidateManager:
         if self.candidates is None or phrase_annotation.resolved_annotation == 0:
             return
         candidates = self._fetch_candidates(phrase_annotation, sentence)
+        
+        if self.full_candidates:
+            candidates = self.full_candidates_list
+        
         if not candidates:
             phrase_annotation.set_alternative_as_resolved_annotation(0)
             return
