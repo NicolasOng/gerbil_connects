@@ -230,9 +230,9 @@ class EfficientEL(LightningModule):
                 batch, hidden_states
             )
 
-        except:
+        except Exception as e:
             if not self.training:
-                print("error on generation")
+                print("error on generation:", e)
 
         try:
             spans = self._tokens_scores_to_spans(batch, start, end, tokens, scores_el)
