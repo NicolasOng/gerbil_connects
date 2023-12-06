@@ -236,9 +236,9 @@ class EfficientEL(LightningModule):
 
         try:
             spans = self._tokens_scores_to_spans(batch, start, end, tokens, scores_el)
-        except:
+        except Exception as e:
             if not self.training:
-                print("error on _tokens_scores_to_spans")
+                print("error on _tokens_scores_to_spans:", e)
 
             spans = [[[0, 0, [("NIL", 0)]]] for i in range(len(batch["src_input_ids"]))]
 
