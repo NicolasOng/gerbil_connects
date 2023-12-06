@@ -45,6 +45,10 @@ class Model:
             full_candidates_list = pickle.load(f)
         for mention in self.mention_to_candidates_dict:
             self.mention_to_candidates_dict[mention] = full_candidates_list
+    
+    def set_true_empty_candidates(self):
+        for mention in self.mention_to_candidates_dict:
+            self.mention_to_candidates_dict[mention] = []
 
     def _ensure_spacy(self):
         if self.spacy_model is None:

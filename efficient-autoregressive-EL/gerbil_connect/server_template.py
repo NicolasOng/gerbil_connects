@@ -112,6 +112,9 @@ def ea_el_model(raw_text):
         # after: each candidate list is the full candidate list.
         full_dataset_candidates = [full_candidates_list.copy() for _ in dataset_candidates]
         model_preds = model.sample([dataset_input], candidates=[full_dataset_candidates], anchors=[dataset_anchors], all_targets=True)
+    elif args.true_empty_candidate_sets and (dataset_id is not None):
+        empty_dataset_candidates = [[] for _ in dataset_candidates]
+        model_preds = model.sample([dataset_input], candidates=[empty_dataset_candidates], anchors=[dataset_anchors], all_targets=True)
     elif dataset_id is not None:
         model_preds = model.sample([dataset_input], candidates=[dataset_candidates], anchors=[dataset_anchors], all_targets=True)
     else:
@@ -196,6 +199,7 @@ def annotate_n3():
 parser = argparse.ArgumentParser()
 parser.add_argument("--no-candidate-sets", action="store_true")
 parser.add_argument("--full-candidate-sets", action="store_true")
+parser.add_argument("--true_empty_candidate_sets", action="store_true")
 args = parser.parse_args()
 
 # get the candidate sets

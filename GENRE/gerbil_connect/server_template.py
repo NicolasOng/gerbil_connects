@@ -290,6 +290,7 @@ genre_mode = "genre3"
 parser = argparse.ArgumentParser()
 parser.add_argument("--no-candidate-sets", action="store_true")
 parser.add_argument("--full-candidate-sets", action="store_true")
+parser.add_argument("--true_empty_candidate_sets", action="store_true")
 args = parser.parse_args()
 
 if (genre_mode == "genre1"):
@@ -315,6 +316,13 @@ elif genre_mode == "genre3":
                     mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
                     candidates_trie=None)
         model.set_full_candidates()
+    elif args.true_empty_candidate_sets:
+        print("...with true empty candidate sets...")
+        model = Model(yago=True,
+                    mention_trie="data/mention_trie.pkl",
+                    mention_to_candidates_dict="data/mention_to_candidates_dict.pkl",
+                    candidates_trie=None)
+        model.set_true_empty_candidates()
     else:
         print("...with elevant candidate sets...")
         model = Model(yago=True,
