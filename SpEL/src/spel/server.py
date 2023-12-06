@@ -53,7 +53,6 @@ The second argument after the annotator name can be any of the following:
     - pw: pprforned (context aware setting)
 """
 candidate_setting = sys.argv[2].lower()
-candidate_setting2 = sys.argv[3].lower()
 
 if annotator_name == 'spel':
     from spel.evaluate_local import SpELEvaluator
@@ -67,7 +66,7 @@ else:
     raise ValueError(f"Undefined annotator: {annotator_name}")
 print(f" * Loading the annotator of type: {annotator_class.__name__}")
 
-assert candidate_setting in ["n", "k", "pg", "pw"]
+assert candidate_setting in ["n", "k", "pg", "pw", "pf"]
 if candidate_setting != "n":
     candidates_manager_to_use = CandidateManager(dl_sa.mentions_vocab,
                                                  is_kb_yago=candidate_setting == "k",
@@ -78,7 +77,8 @@ if candidate_setting != "n":
 else:
     print(f" * (not) loading the candidates!")
 
-if candidate_setting2 == "f":
+if candidate_setting == "pf":
+    print("full candidate test")
     candidates_manager_to_use.full_candidates = True
 
 def extract_dump_res_json(parsed_collection):
