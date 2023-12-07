@@ -66,7 +66,7 @@ else:
     raise ValueError(f"Undefined annotator: {annotator_name}")
 print(f" * Loading the annotator of type: {annotator_class.__name__}")
 
-assert candidate_setting in ["n", "k", "pg", "pw", "pf"]
+assert candidate_setting in ["n", "k", "pg", "pw", "pf", "pe"]
 if candidate_setting != "n":
     candidates_manager_to_use = CandidateManager(dl_sa.mentions_vocab,
                                                  is_kb_yago=candidate_setting == "k",
@@ -80,6 +80,10 @@ else:
 if candidate_setting == "pf":
     print("full candidate test")
     candidates_manager_to_use.full_candidates = True
+
+if candidate_setting == "pe":
+    print("empty candidate test")
+    candidates_manager_to_use.empty_candidates = True
 
 def extract_dump_res_json(parsed_collection):
     return {

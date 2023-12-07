@@ -31,6 +31,7 @@ class CandidateManager:
         self.is_ppr_for_ned = is_ppr_for_ned
         
         self.full_candidates = False
+        self.empty_candidates = False
         with open('candidate_list.pkl', 'rb') as f:
             # Load the list from the file
             self.full_candidates_list = pickle.load(f)
@@ -93,6 +94,9 @@ class CandidateManager:
         
         if self.full_candidates:
             candidates = self.full_candidates_list
+        
+        if self.empty_candidates:
+            candidates = []
         
         if not candidates:
             phrase_annotation.set_alternative_as_resolved_annotation(0)
