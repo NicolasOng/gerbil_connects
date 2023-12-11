@@ -30,7 +30,7 @@ fig, axes = plt.subplots(1, 3, figsize=(8, 3.75), sharey=True)
 # AIDA-A
 axes[0].bar(models, f1_scores_AIDA_A, color='black')
 axes[0].set_title('AIDA-A')
-axes[0].set_ylabel('F1-Score')
+axes[0].set_ylabel('Micro F1-Score')
 axes[0].set_xticklabels(models, rotation=90, ha="center")
 axes[0].set_ylim([0, max_f1_score])  # Set common y-axis limit
 axes[0].grid(True, linestyle='--', color='black')
