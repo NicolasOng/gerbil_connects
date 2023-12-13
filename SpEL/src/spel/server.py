@@ -54,7 +54,7 @@ The second argument after the annotator name can be any of the following:
 """
 candidate_setting = sys.argv[2].lower()
 test_setting = sys.argv[3].lower()
-size_setting = sys.argv[4].lower()
+size_setting = sys.argv[4]
 
 if annotator_name == 'spel':
     from spel.evaluate_local import SpELEvaluator
@@ -84,13 +84,13 @@ if test_setting == "full":
     print("full candidate test")
     candidates_manager_to_use.full_candidates = True
 
-if candidate_setting == "empty":
+if test_setting == "empty":
     print("empty candidate test")
     candidates_manager_to_use.empty_candidates = True
 
 assert size_setting in ["5K", "500K"]
 use_500K = False
-if test_setting == "500K":
+if size_setting == "500K":
     use_500K = True
 
 def extract_dump_res_json(parsed_collection):
