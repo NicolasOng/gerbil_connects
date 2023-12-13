@@ -43,7 +43,7 @@ candidates_manager_to_use = None
 n3_entity_to_kb_mappings = None
 
 lock = Lock()
-assert len(sys.argv) == 3, "Run the script with the expected annotator_name and candidate_setting!"
+assert len(sys.argv) == 5, "Run the script with the expected annotator_name and candidate_setting!"
 annotator_name = sys.argv[1]
 """
 The second argument after the annotator name can be any of the following:
@@ -53,6 +53,8 @@ The second argument after the annotator name can be any of the following:
     - pw: pprforned (context aware setting)
 """
 candidate_setting = sys.argv[2].lower()
+test_setting = sys.argv[3].lower()
+size_setting = sys.argv[4].lower()
 
 if annotator_name == 'spel':
     from spel.evaluate_local import SpELEvaluator
@@ -66,7 +68,7 @@ else:
     raise ValueError(f"Undefined annotator: {annotator_name}")
 print(f" * Loading the annotator of type: {annotator_class.__name__}")
 
-assert candidate_setting in ["n", "k", "pg", "pw", "pf", "pe"]
+assert candidate_setting in ["n", "k", "pg", "pw"]
 if candidate_setting != "n":
     candidates_manager_to_use = CandidateManager(dl_sa.mentions_vocab,
                                                  is_kb_yago=candidate_setting == "k",
@@ -77,13 +79,19 @@ if candidate_setting != "n":
 else:
     print(f" * (not) loading the candidates!")
 
-if candidate_setting == "pf":
+assert test_setting in ["default", "empty", "full"]
+if test_setting == "full":
     print("full candidate test")
     candidates_manager_to_use.full_candidates = True
 
-if candidate_setting == "pe":
+if candidate_setting == "empty":
     print("empty candidate test")
     candidates_manager_to_use.empty_candidates = True
+
+assert size_setting in ["5K", "500K"]
+use_500K = False
+if test_setting == "500K":
+    use_500K = True
 
 def extract_dump_res_json(parsed_collection):
     return {
@@ -126,7 +134,7 @@ def generic_annotate(nif_bytes, load_aida_finetuned, kb_prefix, load_full_vocabu
 @cross_origin(origins='*')
 def annotate_aida():
     """Use this API for AIDA dataset."""
-    return generic_annotate(request.data, True, "http://en.wikipedia.org/wiki/")
+    return generic_annotate(request.data, True, "http://en.wikipedia.org/wiki/", load_full_vocabulary=use_500K)
 
 @app.route('/annotate_wiki', methods=['GET', 'POST', 'OPTIONS'])
 @cross_origin(origins='*')
