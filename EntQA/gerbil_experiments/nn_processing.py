@@ -26,6 +26,11 @@ class Annotator(object):
         self.args = args
         self.logger = self.set_logger()
         self.all_cands_embeds, self.entities = self.load_cands_part()
+        #print(len(self.all_cands_embeds))
+        #print(len(self.entities))
+        #print(self.all_cands_embeds[0])
+        #print(self.all_cands_embeds[-1])
+        #print(self.all_cands_embeds.shape)
         self.my_device = torch.device('cuda' if torch.cuda.is_available()
                                       else 'cpu')
         self.tokenizer = BertTokenizer.from_pretrained('bert-large-uncased')
@@ -62,6 +67,48 @@ class Annotator(object):
             self.logger.log('Data parallel across %d GPUs: %s' %
                             (len(self.args.gpus.split(',')), self.args.gpus))
             self.model_reader = nn.DataParallel(self.model_reader)
+        
+        self.use_alt_candidate_set = False
+        self.alt_candidate_set = None
+
+    def set_empty1_setting(self):
+        self.entities = []
+        self.all_cands_embeds = []
+
+    def set_empty2_setting(self):
+        self.use_alt_candidate_set = True
+        self.alt_candidate_set = []
+
+    def set_full1_setting(self):
+        # 1. load the full candidate set
+        import pickle
+        with open("candidate_list.pkl", 'rb') as file:
+            full_candidate_set = pickle.load(file)
+        # 2. replace the entities and embeddings list
+        replacement_entities = []
+        replacement_all_cands_embeds = []
+        for title in full_candidate_set:
+            for i, entity in enumerate(self.entities):
+                if entity['title'] == title:
+                    replacement_entities.append(self.entities[i])
+                    replacement_all_cands_embeds.append(self.all_cands_embeds[i])
+                    break
+        self.entities = replacement_entities
+        self.all_cands_embeds = np.array(replacement_all_cands_embeds)
+
+    def set_full2_setting(self):
+        self.use_alt_candidate_set = True
+        # 1. load the full candidate set
+        import pickle
+        with open("candidate_list.pkl", 'rb') as file:
+            full_candidate_set = pickle.load(file)
+        # 2. search for the candidate in self.entities, and save its index.
+        self.alt_candidate_set = []
+        for title in full_candidate_set:
+            for i, entity in enumerate(self.entities):
+                if entity['title'] == title:
+                    self.alt_candidate_set.append(i)
+                    break
 
     def set_logger(self):
         logger = Logger(self.args.log_path + '.log', True)
@@ -93,9 +140,13 @@ class Annotator(object):
         top_k_test, scores_k_test = get_hard_negative(test_mention_embeds,
                                                       self.all_cands_embeds,
                                                       self.args.k, 0, False)
+        #print(top_k_test[:2])
+        #print(samples_retriever[:2])
+        #print(self.entities[:2])
         self.logger.log('reader part')
         samples_reader = get_reader_input(samples_retriever, top_k_test,
-                                          self.entities)
+                                          self.entities, alt_candidate_set=self.alt_candidate_set)
+        #print(samples_reader[0])
         reader_loader = get_reader_loader(samples_reader, self.tokenizer,
                                           self.args.max_len_reader,
                                           self.args.max_num_candidates,
@@ -106,8 +157,8 @@ class Annotator(object):
                                        reader_loader, self.args.num_spans,
                                        samples_reader, self.args.do_rerank,
                                        True, self.args.no_multi_ents)
-        print(len(raw_predicts))
-        print(raw_predicts[0].shape)
+        #print(len(raw_predicts))
+        #print(raw_predicts[0].shape)
         pruned_predicts = prune_predicts(raw_predicts, self.args.thresd)
         #print(pruned_predicts)
         transformed_predicts = process_raw_predicts(pruned_predicts,

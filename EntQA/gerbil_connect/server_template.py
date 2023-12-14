@@ -118,6 +118,8 @@ def parse_args():
                         help='use title?')
     parser.add_argument('--no_multi_ents', action='store_true',
                         help='no repeated entities are allowed given a span?')
+    
+    parser.add_argument('--candidate_set_setting', type=str)
 
     args = parser.parse_args()
     return args
@@ -216,6 +218,18 @@ args = parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpus
 entqa_annotator = Annotator(args)
+
+if args.candidate_set_setting == "empty1":
+    entqa_annotator.set_empty1_setting()
+
+if args.candidate_set_setting == "empty2":
+    entqa_annotator.set_empty2_setting()
+
+if args.candidate_set_setting == "full1":
+    entqa_annotator.set_full1_setting()
+
+if args.candidate_set_setting == "full2":
+    entqa_annotator.set_full2_setting()
 
 if __name__ == '__main__':
     annotator_name = "EntQA"

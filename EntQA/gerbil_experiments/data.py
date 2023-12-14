@@ -67,16 +67,20 @@ def get_retriever_loader(samples, tokenizer, bsz, max_len, add_topic=False,
     return retriever_loader
 
 
-def get_reader_input(samples, candidates, ents):
+def get_reader_input(samples, candidates, ents, alt_candidate_set=None):
     # convert faiss top-k candidates to reader input list of dicts
     # ents is list of entity dicts
     assert len(samples) == len(candidates)
     results = []
     for i, s in enumerate(samples):
         cands = candidates[i]
+
+        if alt_candidate_set is not None:
+            cands = alt_candidate_set
+
         result = {'text': s['text'], 'topic': s['topic'],
                   'title': s['title'],
-                  'candidates': [ents[j] for j in cands]}
+                  'candidates': [ents[j] for j in cands]} # here is where the candidate list with names is made. No underscores.
         results.append(result)
     return results
 
