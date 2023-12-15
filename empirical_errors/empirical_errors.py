@@ -98,7 +98,9 @@ wrong_mention = 0
 for i in range(len(gold_annotations)):
     gold_annotation = gold_annotations[i]
     pred_annotation = pred_annotations[i]
-    assert gold_annotation['text'] == pred_annotation['text']
+
+    assert_msg = f"Document {i}: {gold_annotation['text'][:50]}/{pred_annotation['text'][:50]}"
+    assert gold_annotation['text'] == pred_annotation['text'], assert_msg
 
     text = gold_annotation['text']
     gold_spans = gold_annotation['value']
