@@ -73,7 +73,7 @@ class Annotator(object):
 
     def set_empty1_setting(self):
         self.entities = []
-        self.all_cands_embeds = []
+        self.all_cands_embeds = np.empty((0, 1024))
 
     def set_empty2_setting(self):
         self.use_alt_candidate_set = True
@@ -84,10 +84,12 @@ class Annotator(object):
         import pickle
         with open("candidate_list.pkl", 'rb') as file:
             full_candidate_set = pickle.load(file)
+            full_candidate_set = [title.replace("_", " ") for title in full_candidate_set]
         # 2. replace the entities and embeddings list
         replacement_entities = []
         replacement_all_cands_embeds = []
         for title in full_candidate_set:
+            print(title)
             for i, entity in enumerate(self.entities):
                 if entity['title'] == title:
                     replacement_entities.append(self.entities[i])
@@ -102,13 +104,17 @@ class Annotator(object):
         import pickle
         with open("candidate_list.pkl", 'rb') as file:
             full_candidate_set = pickle.load(file)
+            full_candidate_set = [title.replace("_", " ") for title in full_candidate_set]
         # 2. search for the candidate in self.entities, and save its index.
         self.alt_candidate_set = []
         for title in full_candidate_set:
+            print(title)
             for i, entity in enumerate(self.entities):
                 if entity['title'] == title:
                     self.alt_candidate_set.append(i)
                     break
+        with open("candidate_indices.pkl", "wb") as file:
+            pickle.dump(self.alt_candidate_set, file)
 
     def set_logger(self):
         logger = Logger(self.args.log_path + '.log', True)
