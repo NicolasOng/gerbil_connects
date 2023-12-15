@@ -24,7 +24,7 @@ def read_csv_data(file_path):
 
         return models, p_scores_AIDA_A, p_scores_AIDA_B, p_scores_AIDA_C, r_scores_AIDA_A, r_scores_AIDA_B, r_scores_AIDA_C
 
-file_path = 'normal-micropr.txt'  # Replace with your CSV file path
+file_path = 'table2-micropr.txt'  # Replace with your CSV file path
 models, p_scores_AIDA_A, p_scores_AIDA_B, p_scores_AIDA_C, r_scores_AIDA_A, r_scores_AIDA_B, r_scores_AIDA_C = read_csv_data(file_path)
 
 #max_f1_score = max(max(f1_scores_AIDA_A), max(f1_scores_AIDA_B), max(f1_scores_AIDA_C))

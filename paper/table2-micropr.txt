@@ -1,0 +1,7 @@
+model,AIDA-A precision,AIDA-A recall,AIDA-B precision,AIDA-B recall,AIDA-C precision,AIDA-C recall,
+E-BERT,21.47,24.32,17.44,20.42,16.55,18.7,
+GENRE,85.42,84.89,76.34,81.81,77.19,74.11,
+Efficient-AEL,61.09,62.93,48.83,50.21,39.72,34.72,
+EntQA,84.28,89.5,82.38,86.31,74.71,70.52,
+Feng 2022,39.66,31.33,37,29.1,40.77,20.72,
+SpEL no cnds.,89.88,89.56,84.38,80.22,80.03,75,2,
