@@ -24,7 +24,7 @@ def read_csv_data(file_path):
 
         return models, p_scores_AIDA_A, p_scores_AIDA_B, p_scores_AIDA_C, r_scores_AIDA_A, r_scores_AIDA_B, r_scores_AIDA_C
 
-file_path = 'table2-micropr.txt'  # Replace with your CSV file path
+file_path = 'table1-micropr.txt'  # Replace with your CSV file path
 models, p_scores_AIDA_A, p_scores_AIDA_B, p_scores_AIDA_C, r_scores_AIDA_A, r_scores_AIDA_B, r_scores_AIDA_C = read_csv_data(file_path)
 
 #max_f1_score = max(max(f1_scores_AIDA_A), max(f1_scores_AIDA_B), max(f1_scores_AIDA_C))
@@ -33,7 +33,7 @@ max_score = 100
 bar_width = 0.35  # Width of the bars
 
 # Creating the bar graphs
-fig, axes = plt.subplots(1, 3, figsize=(8, 3.75), sharey=True)
+fig, axes = plt.subplots(1, 3, figsize=(8, 5.5), sharey=True)
 
 # Helper function to plot bars
 def plot_bars(ax, recall_scores, precision_scores, title, show_legend=False):
