@@ -1,0 +1,6 @@
+[submodule "entity_knowledge_in_bert/pytorch-pretrained-BERT"]
+	path = entity_knowledge_in_bert/pytorch-pretrained-BERT
+	url = https://github.com/huggingface/pytorch-pretrained-BERT.git
+[submodule "entity_knowledge_in_bert/wikiextractor-wikimentions"]
+	path = entity_knowledge_in_bert/wikiextractor-wikimentions
+	url = https://github.com/samuelbroscheit/wikiextractor-wikimentions.git
