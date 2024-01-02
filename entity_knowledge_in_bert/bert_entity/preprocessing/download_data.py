@@ -48,24 +48,38 @@ class DownloadWikiDump(PipelineJob):
         else:
             if self.opts.download_2017_enwiki:
                 url = "https://archive.org/download/enwiki-20171001/"
+                subprocess.check_call(
+                    [
+                        "wget",
+                        "-r",
+                        "-l1",
+                        "-np",
+                        "-nd",
+                        url,
+                        "-A",
+                        f"enwiki-20171001-pages-articles*.xml-*.bz2",
+                        "-P",
+                        f"data/versions/{self.opts.data_version_name}/downloads/tmp/",
+                    ]
+                )
             else:
                 url = f"https://dumps.wikimedia.org/{self.opts.wiki_lang_version}/latest/"
-            subprocess.check_call(
-                [
-                    "wget",
-                    "-r",
-                    "-l1",
-                    "-np",
-                    "-nd",
-                    url,
-                    "-A",
-                    f"{self.opts.wiki_lang_version}-latest-pages-articles*.xml-*.bz2",
-                    "-R",
-                    f"{self.opts.wiki_lang_version}-latest-pages-articles-multistream*.xml-*.bz2",
-                    "-P",
-                    f"data/versions/{self.opts.data_version_name}/downloads/tmp/",
-                ]
-            )
+                subprocess.check_call(
+                    [
+                        "wget",
+                        "-r",
+                        "-l1",
+                        "-np",
+                        "-nd",
+                        url,
+                        "-A",
+                        f"{self.opts.wiki_lang_version}-latest-pages-articles*.xml-*.bz2",
+                        "-R",
+                        f"{self.opts.wiki_lang_version}-latest-pages-articles-multistream*.xml-*.bz2",
+                        "-P",
+                        f"data/versions/{self.opts.data_version_name}/downloads/tmp/",
+                    ]
+                )
 
         os.rename(
             f"data/versions/{self.opts.data_version_name}/downloads/tmp/",
