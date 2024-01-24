@@ -96,8 +96,9 @@ For the candidate set ablation experiments, we did the following:
 - Full Setting: If one wasn't available, alter the model to use the in-domain mention vocabulary of AIDA as their candidate sets (about 5K entities)
 
 Some experimental notes:
-- We also had an "Empty Setting", where we altered the candidate sets to be empty. We ran this on nearly all models, and they all got 0.
+- We also had an "Empty Setting", where we altered the candidate sets to be empty. We ran this on nearly all the models, and they all got 0.
 - We were planning to modify the Full Setting to include 500K or even 6M entities, but we decided not to based on the scores and time from the 5K experiments with the models.
+- We also ran the "Full Setting" on nearly all the models (eg: GENRE's trie restricts entity generation to 5K entities instead of no restrictions). As mentioned in the paper, we didn't report the results if the model already had a default setting or didn't do well enough. Those "didn't do well enough" scores are added below.
 
 | Model | test a | test b | test c | setting |
 | - | - | - | - | - |
@@ -107,4 +108,9 @@ Some experimental notes:
 | Shavarani and Sarkar (2023) | 89.72 | 82.25 | 77.54 | Default |
 | Poerner et al. (2019) | 22.81 | 18.81 | 17.56 | Full |
 | Feng et al. (2022) | 35.00 | 32.58 | 27.48 | Full |
+| Kolitsas et al. (2018) | 0.04 | 0.22 | 0 | Full |
+| Peters et al. (2019) KnowBert-Wiki | 1.05 | 0.49 | 0.24 | Full |
+| Peters et al. (2019) KnowBert-W+W | 0.96 | 0.45 | 0.14 | Full |
+| van Hulst et al. (2020) Wiki 2014 | 0.04 | 0.11 | 0 | Full |
+| van Hulst et al. (2020) Wiki 2019 | 0.02 | 0.02 | 0 | Full |
 
