@@ -62,6 +62,7 @@ if __name__ == "__main__":
         eval_dataset = getattr(Datasets, args.dataset)(args, split="valid", vocab=vocab, device=args.eval_device)
         eval_iter = eval_dataset.get_data_iter(args=args, batch_size=args.eval_batch_size, vocab=vocab, train=False)
     else:
+        # this runs during evaluation
         eval_dataset = getattr(Datasets, args.dataset)(args, split="test", vocab=vocab, device=args.eval_device)
         eval_iter = eval_dataset.get_data_iter(args=args, batch_size=args.eval_batch_size, vocab=vocab, train=False)
 
@@ -72,8 +73,10 @@ if __name__ == "__main__":
     metrics = Metrics()
 
     if args.eval_before_training or args.eval_on_test_only:
+        # this runs during evaluation
         cloned_args = copy.deepcopy(args)
         cloned_args.dont_save_checkpoints = True
+        # the model class is in model_conll.py - ConllNet (see the config file)
         metrics = model_class.evaluate(
             cloned_args,
             model,
