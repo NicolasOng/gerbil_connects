@@ -136,3 +136,8 @@ dmypy.json
 .pyre/
 *.xml
 *.gif
+
+
+enwiki-latest-pages-articles.xml.bz2
+enwiki-latest-pages-articles.db
+enwiki-latest-pages-articles.db-lock
