@@ -8,8 +8,8 @@ from contextlib import closing
 from multiprocessing.pool import Pool
 import sys
 import os
-os.environ['PYTHONPATH'] = "/home/v-zilinxiao/code/transformers/src"
-sys.path.insert(0, "/home/v-zilinxiao/code/transformers/src")
+os.environ['PYTHONPATH'] = "src"
+sys.path.insert(0, "src")
 import transformers
 from common_utils.sentence_splitter import OpenNLPSentenceSplitter
 from transformers.models.llama.tokenization_llama import LlamaTokenizer
@@ -236,8 +236,11 @@ class WikiDumper:
 
 if __name__ == '__main__':
     print(f"Loading necessary resources...")
-    dump_db = DumpDB("/home/v-zilinxiao/data/dataset/wiki_raw/0220-full.db")
-    tokenizer = LlamaTokenizer.from_pretrained("/home/v-zilinxiao/code/transformers/llama_7B_0.5_lora_spacing/checkpoint-1000")
+    # was /home/v-zilinxiao/data/dataset/wiki_raw/0220-full.db
+    dump_db = DumpDB("enwiki-latest-pages-articles.db")
+    # see https://huggingface.co/docs/transformers/main/en/model_doc/llama
+    # was /home/v-zilinxiao/code/transformers/llama_7B_0.5_lora_spacing/checkpoint-1000
+    tokenizer = LlamaTokenizer.from_pretrained("hf-internal-testing/llama-tokenizer")
     sentence_splitter = OpenNLPSentenceSplitter()
 
     WikiDumper.build(dump_db, tokenizer, sentence_splitter)

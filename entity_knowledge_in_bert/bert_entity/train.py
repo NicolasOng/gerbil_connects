@@ -65,6 +65,17 @@ if __name__ == "__main__":
         # this runs during evaluation
         eval_dataset = getattr(Datasets, args.dataset)(args, split="test", vocab=vocab, device=args.eval_device)
         eval_iter = eval_dataset.get_data_iter(args=args, batch_size=args.eval_batch_size, vocab=vocab, train=False)
+        '''
+        print(eval_dataset)
+        print(eval_iter)
+        print(eval_iter.batch_size)
+        print(dir(eval_iter))
+        for batch_idx, batch_data in enumerate(eval_iter):
+            print(f"Batch {batch_idx}:")
+            for item in batch_data: print(type(item))
+            break
+        '''
+
 
     start_epoch = 1
     if checkpoint and not args.resume_reset_epoch:
@@ -74,6 +85,7 @@ if __name__ == "__main__":
 
     if args.eval_before_training or args.eval_on_test_only:
         # this runs during evaluation
+        #print(args)
         cloned_args = copy.deepcopy(args)
         cloned_args.dont_save_checkpoints = True
         # the model class is in model_conll.py - ConllNet (see the config file)
