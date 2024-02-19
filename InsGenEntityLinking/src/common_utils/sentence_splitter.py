@@ -79,7 +79,8 @@ class OpenNLPSentenceSplitter(SentenceSplitter):
             import jnius_config
 
             jnius_config.add_options("-Xrs")
-            jnius_config.set_classpath(pkg_resources.resource_filename(__name__, "/resources/opennlp-tools-1.5.3.jar"))
+            # used to be /resources/opennlp-tools-1.5.3.jar
+            jnius_config.set_classpath(pkg_resources.resource_filename(__name__, "resources/apache-opennlp-1.5.3/lib/*"))
             OpenNLPSentenceSplitter._java_initialized = True
 
         from jnius import autoclass
