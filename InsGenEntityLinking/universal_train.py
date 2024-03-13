@@ -3,9 +3,6 @@ from typing import Optional, List
 from transformers import Trainer
 import transformers
 
-if not transformers.__version__.endswith("dev0"):
-    raise ImportError("You are not using the latest version of transformers.")
-
 from common_utils.universal_dataset_utils import (
     build_universal_data_modules,
 )
