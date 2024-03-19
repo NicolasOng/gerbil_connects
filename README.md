@@ -22,6 +22,7 @@ Here are the repos where experiments were attempted
 
 - CHOLAN (Kannan Ravi. et al): Model not provided, training code not provided, data used in scripts missing
 - entity_knowledge_in_bert (Broscheit): Model not provided, currently in training.
+- InsGenEntityLinking (Xiao)
 
 Other folders:
 
