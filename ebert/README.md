@@ -1,61 +1,103 @@
+# E-BERT
+
+E-BERT: Efficient-Yet-Effective Entity Embeddings for BERT (Poerner et al., 2020)
+
+<https://github.com/npoe/ebert>
+
+## Environment
+
 ```bash
-conda env create -f environment.yaml
+conda create -n e-bert python=3.7.7
 conda activate e-bert
-```
-
-Download and prepare necessary data for the experiments
-```bash
-bash prepare.sh
-```
-
-If you want to train your own entity embeddings, run Wikipedia2Vec. This will take a while:
-```bash
-cd resources/wikipedia2vec
-wget https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2
-
-wikipedia2vec build-dump-db enwiki-latest-pages-articles.xml.bz2 wikipedia2vec.db
-wikipedia2vec build-dictionary --no-lowercase wikipedia2vec.db wikipedia2vec-cased-raw_dic.pkl
-python3 extend_entity_dict.py --src wikipedia2vec-cased-raw_dic.pkl --tgt wikipedia2vec-cased_dic.pkl --dumpdb wikipedia2vec.db --entity_file ../../data/AIDA/aida_entities_and_candidates.txt
-
-wikipedia2vec build-link-graph wikipedia2vec.db wikipedia2vec-cased_dic.pkl wikipedia2vec-cased_lg.pkl
-wikipedia2vec build-mention-db wikipedia2vec.db wikipedia2vec-cased_dic.pkl wikipedia2vec-cased_mention.pkl
-time wikipedia2vec train-embedding --dim-size 768 --mention-db wikipedia2vec-cased_mention.pkl --link-graph wikipedia2vec-cased_lg.pkl wikipedia2vec.db wikipedia2vec-cased_dic.pkl wikipedia2vec-base-cased
-
-
+pip install torch==1.2.0
+cd code
+cd kb
+pip install -r requirements.txt
+pip install overrides==2.8.0
+python -c "import nltk; nltk.download('wordnet')"
+python -m spacy download en_core_web_sm
+pip install --editable .
+pip install pytorch-transformers==1.2.0
+pip install wikipedia2vec==1.0.4
+pip install scikit-learn==0.21
 cd ../..
+bash prepare.sh
+pip install pynif
 ```
 
-Or download our pretrained model:
+Download the pretrained models (29.1 GiB):
+
 ```bash
 wget https://www.cis.uni-muenchen.de/~poerner/blobs/e-bert/wikipedia2vec-base-cased
 wget https://www.cis.uni-muenchen.de/~poerner/blobs/e-bert/wikipedia2vec-base-cased.bert-base-cased.linear.npy
+mkdir mappers
 mv wikipedia2vec-base-cased resources/wikipedia2vec
 mv wikipedia2vec-base-cased.bert-base-cased.linear.npy mappers
 ```
 
 Fit the linear mapping:
+
 ```bash
 cd code
 python3 run_mapping.py --src wikipedia2vec-base-cased --tgt bert-base-cased --save_out ../mappers/wikipedia2vec-base-cased.bert-base-cased.linear
 ```
 
-Run LAMA experiment:
+Train a new model:
+
 ```bash
-python3 run_lama.py --wikiname wikipedia2vec-base-cased --modelname bert-base-cased --data_dir ../data/LAMA/data --output_dir ../outputs/LAMA --infer_entity
-python3 score_lama.py --file ../outputs/LAMA/all.bert-base-cased.wikipedia2vec-base-cased_infer.jsonl
+python run_aida.py --model_dir '../model'
 ```
 
-Run LAMA-UHN experiment:
-```bash
-python3 run_lama.py --wikiname wikipedia2vec-base-cased --modelname bert-base-cased --data_dir ../data/LAMA/data --output_dir ../outputs/LAMA_UHN --infer_entity --uhn
-python3 score_lama.py --file ../outputs/LAMA_UHN/all.bert-base-cased.wikipedia2vec-base-cased_infer.jsonl
+This creates a model in the model folder that looks like:
+
+```text
+model/
+├── model.pth
+├── model_args.json
+├── null_bias.pth
+├── null_vector.pth
+└── train_args.json
 ```
 
+Score the new model:
 
-Download and unpack RC (FewRel) data from `https://drive.google.com/open?id=1HlWw7Q6-dFSm9jNSCh4VaBf1PlGqt9im` and unpack them in data/fewrel
-
-Run Relation Classification (FewRel) experiment
 ```bash
-python3 run_fewrel.py --data_dir ../data/fewrel --output_dir ../outputs/fewrel/ebert_concat --ent concat --do_train --do_eval --do_test
-python3 score_fewrel.py ../outputs/fewrel/ebert_concat/test_gold.txt ../outputs/fewrel/ebert_concat/test_pred.txt
+python score_aida.py --pred '../model/aida_dev.txt.pred_iter3.txt' --gold '../model/aida_dev.txt.gold.txt'
+```
+
+## Evaluation
+
+When starting the server, the following option is provided:
+
+* model_dir: the folder containing the trained model. Typically `../model`
+
+Use one of the following commands to start the annotator server.
+
+Default:
+
+```bash
+python -m gerbil_connect.server_template --model_dir '../model'
+```
+
+Empty Candidate Sets:
+
+```bash
+python -m gerbil_connect.server_template --model_dir '../model' --no-candidate-sets
+```
+
+Full Candidate Sets:
+
+```bash
+python -m gerbil_connect.server_template --model_dir '../model' --full-candidate-sets
+```
+
+After starting the gerbil_connect server, use `http://localhost:3002/annotate_aida` in GERBIL as the annotator URL.
+
+## Entity Linking
+
+The following performs entity linking on the AIDA datasets without GERBIL. It can be easily to run on custom text.
+
+```bash
+python -m gerbil_connect.
+entity_linking --model_dir '../model' --no-candidate-sets
 ```
