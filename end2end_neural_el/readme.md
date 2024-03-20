@@ -15,7 +15,7 @@ python -c "import nltk; nltk.download('punkt')"
 pip install flask flask-cors pynif
 ```
 
-Download the 'data' folder from [this link](https://drive.google.com/file/d/1OSKvIiXHVVaWUhQ1-fpvePTBQfgMT6Ps/view?usp=sharing) (5.82 GiB), unzip it and place it under end2end_neural_el/
+Download the 'data' folder from [this link](https://drive.google.com/file/d/1OSKvIiXHVVaWUhQ1-fpvePTBQfgMT6Ps/view?usp=sharing) (5.82 GiB), unzip it and place it under `end2end_neural_el/`.
 
 ## Evaluation
 
@@ -43,7 +43,7 @@ After starting the gerbil_connect server, use `http://localhost:3002/annotate_ai
 
 ## Entity Linking
 
-The following performs entity linking on the AIDA datasets without GERBIL. It can be easily to run on custom text.
+The following performs entity linking on the AIDA datasets without GERBIL. It can be easily changed to run on custom text.
 
 ```bash
 python -m gerbil_connect.entity_linking

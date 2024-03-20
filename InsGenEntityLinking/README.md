@@ -1,4 +1,4 @@
-# Insructed Generative Entity Linking
+# Instructed Generative Entity Linking
 
 Instructed Language Models with Retriever Are Powerful Entity Linkers (Xiao et al., 2023)
 

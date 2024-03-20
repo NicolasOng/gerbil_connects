@@ -15,7 +15,7 @@ pip install nltk transformers tensorflow==2.4.0 pandas keras==2.3.1 scikit-learn
 
 ## Downloads and Missing Files
 
-[This link](https://figshare.com/articles/dataset/CHOLAN-EL-Dataset/13607282) containss an EL dataset (323 MiB) extracted from the [T-Rex dataset](https://hadyelsahar.github.io/t-rex/).
+[This link](https://figshare.com/articles/dataset/CHOLAN-EL-Dataset/13607282) contains an EL dataset (323 MiB) extracted from the [T-Rex dataset](https://hadyelsahar.github.io/t-rex/).
 
 [This link](https://drive.google.com/open?id=1MfjzjZH_KKsXshtepzSBwkvjabdEytzh) contains the AIDA-CoNLL dataset (5.82 GiB) from the DCA paper, from [this](https://github.com/YoungXiyuan/DCA) repository.
 

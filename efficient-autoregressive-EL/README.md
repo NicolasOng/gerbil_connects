@@ -52,9 +52,8 @@ After starting the gerbil_connect server, use `http://localhost:3002/annotate_ai
 
 ## Entity Linking
 
-The following performs entity linking on the AIDA datasets without GERBIL. It can be easily to run on custom text.
+The following performs entity linking on the AIDA datasets without GERBIL. It can be easily changed to run on custom text.
 
 ```bash
-python -m gerbil_connect.
-entity_linking
+python -m gerbil_connect.entity_linking
 ```
