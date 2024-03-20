@@ -26,6 +26,7 @@ Here are papers/repos we attempted to reproduce, but were unable to.
 
 Other folders:
 
+- [data](data/): Some custom files needed to run the models - mostly helper data for our evaluation environment or ablation settings.
 - [empirical_errors](empirical_errors/): The code for the error charts
 - [paper](paper/): Mostly for producing graphs that didn't make it into the paper
 - [test_servers](test_servers/): For some testing with the gerbil_connects framework
