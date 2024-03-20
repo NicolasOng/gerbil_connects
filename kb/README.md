@@ -1,6 +1,6 @@
 # KnowBert
 
-Knowledge Enhanced ContextualWord Representations (Peters et al., 2019)
+Knowledge Enhanced Contextual Word Representations (Peters et al., 2019)
 
 <https://github.com/allenai/kb>
 

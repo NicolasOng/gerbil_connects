@@ -6,29 +6,29 @@ This is the repository associated with the NAACL 2024 paper "Unified Examination
 
 ## Repo Overview
 
-Here is a list of the repos where the experiments were successfully run. We will be adding the running instructions in their respective readme.md files.
+Here are the papers/repos that we have reproduced and included in our paper. We added the running instructions in their respective `README.md` files.
 
-- ebert (Poerner)
-- efficient_bert_ent_emb (Feng)
-- efficient-autoregressive-EL (De Cao)
-- end2end_neural_el (Kolitsas)
-- EntQA (Zhang)
-- GENRE (De Cao)
-- kb (Peters)
-- REL (van Hulst)
-- SpEL (Shavarani)
+- [End-to-End Neural Entity Linking (Kolitsas et al., 2018)](end2end_neural_el/)
+- [Knowledge Enhanced Contextual Word Representations (Peters et al., 2019)](kb/)
+- [E-BERT: Efficient-Yet-Effective Entity Embeddings for BERT (Poerner et al., 2020)](ebert/)
+- [REL: An Entity Linker Standing on the Shoulders of Giants (van Hulst et al., 2020)](REL/)
+- [Autoregressive entity retrieval (De Cao et al., 2021b)](GENRE/)
+- [Highly Parallel Autoregressive Entity Linking with Discriminative Correction (De Cao et al., 2021a)](efficient-autoregressive-EL/)
+- [EntQA: Entity Linking as Question Answering (Zhang et al., 2022)](EntQA/)
+- [Efficient Entity Embedding Construction from Type Knowledge for BERT (Feng et al., 2022)](efficient_bert_ent_emb/)
+- [SpEL: Structured Prediction for Entity Linking (Shavarani and Sarkar, 2023)](SpEL/)
 
-Here are the repos where experiments were attempted
+Here are papers/repos we attempted to reproduce, but were unable to.
 
-- CHOLAN (Kannan Ravi. et al): Model not provided, training code not provided, data used in scripts missing
-- entity_knowledge_in_bert (Broscheit): Model not provided, currently in training.
-- InsGenEntityLinking (Xiao)
+- [Investigating Entity Knowledge in BERT with Simple Neural End-To-End Entity Linking (Broscheit, 2019)](entity_knowledge_in_bert/)
+- [CHOLAN: A modular approach for neural entity linking on Wikipedia and Wikidata (Kannan Ravi et al., 2021)](CHOLAN/)
+- [Instructed Language Models with Retriever Are Powerful Entity Linkers (Xiao et al., 2023)](InsGenEntityLinking/)
 
 Other folders:
 
-- empirical errors: The code for the error charts
-- paper: Mostly for producing graphs that didn't make it into the paper
-- test_servers: For some testing with the gerbil_connects framework
+- [empirical_errors](empirical_errors/): The code for the error charts
+- [paper](paper/): Mostly for producing graphs that didn't make it into the paper
+- [test_servers](test_servers/): For some testing with the gerbil_connects framework
 
 ## Reproduction in a Unified Environment
 
@@ -51,7 +51,7 @@ Numbers are for Micro F1.
 
 ### Unified Environment Description
 
-The unified evaluation environment uses gerbil_connect to connect the models to the existing framework GERBIL.
+The unified evaluation environment uses `gerbil_connect` to connect the models to the existing GERBIL framework.
 
 In this evaluation environment, models are given plain text (eg: "The quick fox...") and are expected to output the annotations of that text as a list of character level annotations (eg: [(4, 9, "https://en.wikipedia.org/wiki/Quick"), (10, 13, "https://en.wikipedia.org/wiki/Fox"), ...]).
 
@@ -75,11 +75,11 @@ Other models (GENRE) used a document splitting strategy for evaluation, but this
 
 Some models don't make character-level predictions. Instead, they evaluate on their token-level predictions. For these models, we had to convert back from token predictions to character predictions.
 
-#### "Modification" 4 (Outside data)
+#### Modification 4 (Outside data)
 
 Generally, the data needed for reproduction are available to be downloaded. But for some models (GENRE), it had to be recreated. GENRE uses a modified mention-to-candidate dictionary for evaluation, which is breifly mentioned in Appendix A.2 under Setting. The modifications done to the dictionary are described in issues 30 & 37 in GENRE's repo, but it unfortunately wasn't released. To fix this, we used the dictionary created by Elevant, who were able to replicate GENRE. We found that using this dictionary instead of the usual one results in a +7% score.
 
-#### "Modification" 5 (Training a new model)
+#### Modification 5 (Training a new model)
 
 Some models weren't available to us, but the training code was. We were able to use this to train new models that performed as well as the ones used for the paper.
 
@@ -110,9 +110,9 @@ Some experimental notes:
 
 - We also had an "Empty Setting", where we altered the candidate sets to be empty. We ran this on nearly all the models, and they all got 0.
 - We were planning to modify the Full Setting to include 500K or even 6M entities, but we decided not to based on the scores and time from the 5K experiments with the models.
-- We also ran the "Full Setting" on nearly all the models (eg: GENRE's trie restricts entity generation to 5K entities instead of no restrictions).
+- We implemented the "Full" and "Empty" settings for most of the models, including those that included a "no candidate set" setting.
 
-As mentioned in the paper, we didn't report the results if the model already had a default setting or didn't do well enough. Those "didn't do well enough" scores are added below.
+As mentioned in the paper, we didn't report the results if the model already had a default setting or didn't do well enough. Those "didn't do well enough" scores are added below (the bottom 5 rows - 3 models).
 
 | Model | test a | test b | test c | setting |
 | - | - | - | - | - |
@@ -127,3 +127,25 @@ As mentioned in the paper, we didn't report the results if the model already had
 | Peters et al. (2019) KnowBert-W+W | 0.96 | 0.45 | 0.14 | Full |
 | van Hulst et al. (2020) Wiki 2014 | 0.04 | 0.11 | 0 | Full |
 | van Hulst et al. (2020) Wiki 2019 | 0.02 | 0.02 | 0 | Full |
+
+## GERBIL Setup
+
+You can get GERBIL from this repository: <https://github.com/dice-group/gerbil>
+
+Use this to start GERBIL (also runs set-up the first time running).
+
+```shell
+cd gerbil/
+./start.sh
+```
+
+AIDA A, B, and C may need to be set up in order to evaluate each model on those datasets. Instructions for AIDA/testc can be found [here](https://github.com/shavarani/SpEL?tab=readme-ov-file#aidatestc-dataset).
+
+When GERBIL is running, go to `http://localhost:1234/gerbil/config`.
+
+Use the following options and hit `Run Experiment`:
+
+- Experiment Type: `A2KB`
+- Matching: `Ma - strong annotation match`
+- URI: `http://localhost:3002/annotate_aida`
+- Datasets: `AIDA/CoNLL-Test A`, `AIDA/CoNLL-Test B`, and `AIDA/CoNLL-Test C`
